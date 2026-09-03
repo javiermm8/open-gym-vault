@@ -1,1 +1,1 @@
-# GymVault
+# OpenGymVault

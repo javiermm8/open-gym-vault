@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gymvault}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gymvault}
+      POSTGRES_DB: ${POSTGRES_DB:-gymvault}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - gymvault_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gymvault}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  gymvault_pgdata:
