@@ -1,4 +1,4 @@
-module OpenGymVault
+module github.com/javiermm8/OpenGymVault
 
 go 1.27.0
 
