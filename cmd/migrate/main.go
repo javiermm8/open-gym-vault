@@ -19,13 +19,18 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"github.com/joho/godotenv"
 
-	"github.com/javiermm8/OpenGymVault/db/migrations"
+	"github.com/javiermm8/open-gym-vault/db/migrations"
 )
 
 func main() {
 	if len(os.Args) < 2 {
 		log.Fatal("usage: migrate <up|down|down-all|version>")
+	}
+
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+		log.Printf("warning: found .env but failed to load it: %v", err)
 	}
 
 	dbURL := os.Getenv("DATABASE_URL")
