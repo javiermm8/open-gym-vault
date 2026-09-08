@@ -16,6 +16,16 @@ type Querier interface {
 	CreateGlobalExercise(ctx context.Context, arg CreateGlobalExerciseParams) (Exercise, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	// Deletes every activity belonging to any of the user's sessions. Needed
+	// before deleting the user's custom exercises, since activities.exercise_id
+	// is ON DELETE RESTRICT (to protect shared/global exercises from accidental
+	// deletion) — that RESTRICT can otherwise conflict with the CASCADE from
+	// users -> exercises during a single `DELETE FROM users`.
+	DeleteActivitiesByUser(ctx context.Context, userID pgtype.UUID) error
+	// Deletes the user's own custom exercises. Must run after
+	// DeleteActivitiesByUser so no activity still references them.
+	DeleteExercisesByUser(ctx context.Context, userID pgtype.UUID) error
+	DeleteUser(ctx context.Context, id pgtype.UUID) error
 	GetExerciseByID(ctx context.Context, id pgtype.UUID) (Exercise, error)
 	GetSessionByID(ctx context.Context, id pgtype.UUID) (Session, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)

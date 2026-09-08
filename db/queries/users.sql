@@ -3,6 +3,23 @@ INSERT INTO users (username, display_name, password_hash)
 VALUES ($1, $2, $3)
 RETURNING *;
 
+-- name: DeleteActivitiesByUser :exec
+-- Deletes every activity belonging to any of the user's sessions. Needed
+-- before deleting the user's custom exercises, since activities.exercise_id
+-- is ON DELETE RESTRICT (to protect shared/global exercises from accidental
+-- deletion) — that RESTRICT can otherwise conflict with the CASCADE from
+-- users -> exercises during a single `DELETE FROM users`.
+DELETE FROM activities
+WHERE session_id IN (SELECT id FROM sessions WHERE user_id = $1);
+
+-- name: DeleteExercisesByUser :exec
+-- Deletes the user's own custom exercises. Must run after
+-- DeleteActivitiesByUser so no activity still references them.
+DELETE FROM exercises WHERE user_id = $1;
+
+-- name: DeleteUser :exec
+DELETE FROM users WHERE id = $1;
+
 -- name: GetUserByID :one
 SELECT * FROM users WHERE id = $1;
 

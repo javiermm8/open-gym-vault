@@ -41,6 +41,41 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const deleteActivitiesByUser = `-- name: DeleteActivitiesByUser :exec
+DELETE FROM activities
+WHERE session_id IN (SELECT id FROM sessions WHERE user_id = $1)
+`
+
+// Deletes every activity belonging to any of the user's sessions. Needed
+// before deleting the user's custom exercises, since activities.exercise_id
+// is ON DELETE RESTRICT (to protect shared/global exercises from accidental
+// deletion) — that RESTRICT can otherwise conflict with the CASCADE from
+// users -> exercises during a single `DELETE FROM users`.
+func (q *Queries) DeleteActivitiesByUser(ctx context.Context, userID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteActivitiesByUser, userID)
+	return err
+}
+
+const deleteExercisesByUser = `-- name: DeleteExercisesByUser :exec
+DELETE FROM exercises WHERE user_id = $1
+`
+
+// Deletes the user's own custom exercises. Must run after
+// DeleteActivitiesByUser so no activity still references them.
+func (q *Queries) DeleteExercisesByUser(ctx context.Context, userID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteExercisesByUser, userID)
+	return err
+}
+
+const deleteUser = `-- name: DeleteUser :exec
+DELETE FROM users WHERE id = $1
+`
+
+func (q *Queries) DeleteUser(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteUser, id)
+	return err
+}
+
 const getUserByID = `-- name: GetUserByID :one
 SELECT id, username, display_name, password_hash, bio, sex, birthday, created_at, last_updated_at, client_s FROM users WHERE id = $1
 `
