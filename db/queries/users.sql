@@ -1,6 +1,6 @@
 -- name: CreateUser :one
-INSERT INTO users (username, display_name, password_hash)
-VALUES ($1, $2, $3)
+INSERT INTO users (username, display_name, password_hash, bio, sex, birthday, created_at, last_updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING *;
 
 -- name: DeleteActivitiesByUser :exec

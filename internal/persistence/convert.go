@@ -10,6 +10,10 @@ func ToPgTimestamptz(t time.Time) pgtype.Timestamptz {
 	return pgtype.Timestamptz{Time: t, Valid: true}
 }
 
+func ToPgDate(t time.Time) pgtype.Date {
+	return pgtype.Date{Time: t, InfinityModifier: 0, Valid: true}
+}
+
 func ToPgInterval(d time.Duration) pgtype.Interval {
 	return pgtype.Interval{Microseconds: d.Microseconds(), Valid: true}
 }
@@ -61,4 +65,11 @@ func FromPgTextPtr(v pgtype.Text) *string {
 	}
 	s := v.String
 	return &s
+}
+
+func FromPgTimestamptz(t pgtype.Timestamptz) time.Time {
+	if !t.Valid {
+		return time.Time{}
+	}
+	return t.Time
 }

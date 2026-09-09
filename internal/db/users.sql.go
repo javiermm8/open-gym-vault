@@ -12,19 +12,33 @@ import (
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (username, display_name, password_hash)
-VALUES ($1, $2, $3)
+INSERT INTO users (username, display_name, password_hash, bio, sex, birthday, created_at, last_updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING id, username, display_name, password_hash, bio, sex, birthday, created_at, last_updated_at, client_s
 `
 
 type CreateUserParams struct {
-	Username     string `json:"username"`
-	DisplayName  string `json:"display_name"`
-	PasswordHash string `json:"password_hash"`
+	Username      string             `json:"username"`
+	DisplayName   string             `json:"display_name"`
+	PasswordHash  string             `json:"password_hash"`
+	Bio           pgtype.Text        `json:"bio"`
+	Sex           pgtype.Text        `json:"sex"`
+	Birthday      pgtype.Date        `json:"birthday"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	LastUpdatedAt pgtype.Timestamptz `json:"last_updated_at"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.Username, arg.DisplayName, arg.PasswordHash)
+	row := q.db.QueryRow(ctx, createUser,
+		arg.Username,
+		arg.DisplayName,
+		arg.PasswordHash,
+		arg.Bio,
+		arg.Sex,
+		arg.Birthday,
+		arg.CreatedAt,
+		arg.LastUpdatedAt,
+	)
 	var i User
 	err := row.Scan(
 		&i.ID,
