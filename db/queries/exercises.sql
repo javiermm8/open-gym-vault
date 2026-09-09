@@ -11,11 +11,11 @@ ORDER BY name;
 SELECT * FROM exercises WHERE id = $1;
 
 -- name: CreateGlobalExercise :one
-INSERT INTO exercises (name, alternative_names, explanation)
-VALUES ($1, $2, $3)
+INSERT INTO exercises (name, alternative_names, explanation, client_s)
+VALUES ($1, $2, $3, $4)
 RETURNING *;
 
 -- name: CreateCustomExercise :one
-INSERT INTO exercises (user_id, name, alternative_names, explanation)
-VALUES ($1, $2, $3, $4)
+INSERT INTO exercises (user_id, name, alternative_names, explanation, client_s)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING *;

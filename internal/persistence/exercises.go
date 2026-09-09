@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -14,6 +15,7 @@ type NewExercise struct {
 	Name             string
 	AlternativeNames *[]string
 	Explanation      *string
+	ClientS          *json.RawMessage
 	CreatedAt        time.Time
 	LastUpdatedAt    time.Time
 }
@@ -33,6 +35,7 @@ func (s *Store) CreateExercise(ctx context.Context, in NewExercise) (db.Exercise
 			Name:             in.Name,
 			AlternativeNames: altNames,
 			Explanation:      ToPgTextPtr(in.Explanation),
+			ClientS:          *in.ClientS,
 		})
 		if err != nil {
 			return fmt.Errorf("creating exercise: %w", err)

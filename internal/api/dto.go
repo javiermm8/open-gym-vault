@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -44,11 +45,11 @@ type CreateUserRequest struct {
 }
 
 type CreateExerciseRequest struct {
-	UserID           *string   `json:"user_id"`
-	Name             string    `json:"name"`
-	AlternativeNames *[]string `json:"alternative_names"`
-	Explanation      *string   `json:"explanation"`
-	ClientS          *string   `json:"client_s"`
+	UserID           *string          `json:"user_id"`
+	Name             string           `json:"name"`
+	AlternativeNames *[]string        `json:"alternative_names"`
+	Explanation      *string          `json:"explanation"`
+	ClientS          *json.RawMessage `json:"client_s"`
 }
 
 // Turns request into something the internal/persistence layer can work with(parse uuids, etc)
@@ -128,6 +129,7 @@ func (req CreateExerciseRequest) toNewExercise() (persistence.NewExercise, error
 		Name:             req.Name,
 		AlternativeNames: req.AlternativeNames,
 		Explanation:      req.Explanation,
+		ClientS:          req.ClientS,
 		CreatedAt:        time.Now(),
 		LastUpdatedAt:    time.Time{},
 	}, nil
@@ -171,12 +173,13 @@ type userResponse struct {
 }
 
 type exerciseResponse struct {
-	ID               string    `json:"id"`
-	UserID           *string   `json:"user_id"`
-	Name             string    `json:"name"`
-	AlternativeNames *[]string `json:"alternative_names"`
-	Explanation      *string   `json:"explanation"`
-	CreatedAt        time.Time `json:"created_at"`
+	ID               string           `json:"id"`
+	UserID           *string          `json:"user_id"`
+	Name             string           `json:"name"`
+	AlternativeNames *[]string        `json:"alternative_names"`
+	Explanation      *string          `json:"explanation"`
+	ClientS          *json.RawMessage `json:"client_s"`
+	CreatedAt        time.Time        `json:"created_at"`
 }
 
 // Builds the JSON response from the generated db types
@@ -273,17 +276,13 @@ func toExerciseResponse(exercise db.Exercise) (exerciseResponse, error) {
 		userID = ""
 	}
 
-	altNames := exercise.AlternativeNames
-	if len(exercise.AlternativeNames) == 0 {
-		altNames = []string{}
-	}
-
 	return exerciseResponse{
 		ID:               exerciseID.String(),
 		UserID:           &userID,
 		Name:             exercise.Name,
-		AlternativeNames: &altNames,
+		AlternativeNames: &exercise.AlternativeNames,
 		Explanation:      persistence.FromPgTextPtr(exercise.Explanation),
+		ClientS:          (*json.RawMessage)(&exercise.ClientS),
 		CreatedAt:        persistence.FromPgTimestamptz(exercise.CreatedAt),
 	}, nil
 }

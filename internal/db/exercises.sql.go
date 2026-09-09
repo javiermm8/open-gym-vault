@@ -12,8 +12,8 @@ import (
 )
 
 const createCustomExercise = `-- name: CreateCustomExercise :one
-INSERT INTO exercises (user_id, name, alternative_names, explanation)
-VALUES ($1, $2, $3, $4)
+INSERT INTO exercises (user_id, name, alternative_names, explanation, client_s)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING id, user_id, name, alternative_names, explanation, created_at, last_updated_at, client_s
 `
 
@@ -22,6 +22,7 @@ type CreateCustomExerciseParams struct {
 	Name             string      `json:"name"`
 	AlternativeNames []string    `json:"alternative_names"`
 	Explanation      pgtype.Text `json:"explanation"`
+	ClientS          []byte      `json:"client_s"`
 }
 
 func (q *Queries) CreateCustomExercise(ctx context.Context, arg CreateCustomExerciseParams) (Exercise, error) {
@@ -30,6 +31,7 @@ func (q *Queries) CreateCustomExercise(ctx context.Context, arg CreateCustomExer
 		arg.Name,
 		arg.AlternativeNames,
 		arg.Explanation,
+		arg.ClientS,
 	)
 	var i Exercise
 	err := row.Scan(
@@ -46,8 +48,8 @@ func (q *Queries) CreateCustomExercise(ctx context.Context, arg CreateCustomExer
 }
 
 const createGlobalExercise = `-- name: CreateGlobalExercise :one
-INSERT INTO exercises (name, alternative_names, explanation)
-VALUES ($1, $2, $3)
+INSERT INTO exercises (name, alternative_names, explanation, client_s)
+VALUES ($1, $2, $3, $4)
 RETURNING id, user_id, name, alternative_names, explanation, created_at, last_updated_at, client_s
 `
 
@@ -55,10 +57,16 @@ type CreateGlobalExerciseParams struct {
 	Name             string      `json:"name"`
 	AlternativeNames []string    `json:"alternative_names"`
 	Explanation      pgtype.Text `json:"explanation"`
+	ClientS          []byte      `json:"client_s"`
 }
 
 func (q *Queries) CreateGlobalExercise(ctx context.Context, arg CreateGlobalExerciseParams) (Exercise, error) {
-	row := q.db.QueryRow(ctx, createGlobalExercise, arg.Name, arg.AlternativeNames, arg.Explanation)
+	row := q.db.QueryRow(ctx, createGlobalExercise,
+		arg.Name,
+		arg.AlternativeNames,
+		arg.Explanation,
+		arg.ClientS,
+	)
 	var i Exercise
 	err := row.Scan(
 		&i.ID,
