@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"unicode/utf8"
 )
 
 // Handles POST /sessions
@@ -65,17 +66,61 @@ func validateCreateActivityRequest(a createActivityRequest) error {
 	switch a.ActivityType {
 	case "exercise":
 		if a.ExerciseID == nil {
-			return errInvalid("exercise_id is required when activity_type is \"exercise\"")
+			return errInvalid(`exercise_id is required when activity_type is "exercise"`)
 		}
 	case "rest":
 		if a.ExerciseID != nil {
-			return errInvalid("exercise_id must not be set when activity_type is \"rest\"")
+			return errInvalid(`exercise_id must not be set when activity_type is "rest"`)
 		}
+		if a.Reps != nil {
+			return errInvalid(`reps must not be set when activity_type is "rest"`)
+		}
+		if a.Weight != nil {
+			return errInvalid(`weight must not be set when activity_type is "rest"`)
+		}
+	case "other":
 	default:
 		return errInvalid(`activity_type must be "exercise" or "rest"`)
 	}
 	if a.EndTime.Before(a.StartTime) {
 		return errInvalid("end_time must not be before start_time")
 	}
+	return nil
+}
+
+func (s *Server) GetSession(w http.ResponseWriter, r *http.Request) {
+	sessionID := r.PathValue("id")
+
+	if err := validateGetSessionRequest(sessionID); err != nil {
+		writeErrorMessage(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	session, activities, err := s.store.GetSession(r.Context(), sessionID)
+	if err != nil {
+		log.Printf("GetSession: %v", err)
+		writeError(w, err)
+		return
+	}
+
+	resp, err := toSessionResponse(session, activities)
+	if err != nil {
+		log.Printf("GetSession: building response: %v", err)
+		writeErrorMessage(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, resp)
+
+}
+
+func validateGetSessionRequest(id string) error {
+	if id == "" {
+		return errRequired("id")
+	}
+	if utf8.RuneCountInString(id) != 36 {
+		return errInvalid("id must be a valid session id")
+	}
+
 	return nil
 }

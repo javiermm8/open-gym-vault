@@ -11,7 +11,7 @@ import (
 	"github.com/javiermm8/open-gym-vault/internal/persistence"
 )
 
-// / REQUESTS
+// REQUESTS
 type createSessionRequest struct {
 	// TODO: Add 'token'(or replace UserID and derive from token) for auth.
 	UserID                 string                  `json:"user_id"`
@@ -22,34 +22,36 @@ type createSessionRequest struct {
 	BurnedCals             *int32                  `json:"burned_cals,omitempty"`
 	UserNotes              *string                 `json:"user_notes,omitempty"`
 	Activities             []createActivityRequest `json:"activities"`
+	ClientS                *json.RawMessage        `json:"client_s,omitempty"`
 }
 
 type createActivityRequest struct {
-	ExerciseID      *string   `json:"exercise_id,omitempty"`
-	ActivityType    string    `json:"activity_type"`
-	Reps            *int32    `json:"reps,omitempty"`
-	Weight          *float32  `json:"weight,omitempty"`
-	StartTime       time.Time `json:"start_time"`
-	EndTime         time.Time `json:"end_time"`
-	PerceivedEffort *int32    `json:"perceived_effort,omitempty"`
+	ExerciseID      *string          `json:"exercise_id,omitempty"`
+	ActivityType    string           `json:"activity_type"`
+	Reps            *int32           `json:"reps,omitempty"`
+	Weight          *float32         `json:"weight,omitempty"`
+	StartTime       time.Time        `json:"start_time"`
+	EndTime         time.Time        `json:"end_time"`
+	PerceivedEffort *int32           `json:"perceived_effort,omitempty"`
+	ClientS         *json.RawMessage `json:"client_s,omitempty"`
 }
 
 type CreateUserRequest struct {
-	Username     string    `json:"username"`
-	DisplayName  string    `json:"display_name"`
-	PasswordHash string    `json:"password_hash"`
-	Bio          *string   `json:"bio,omitempty"`
-	Sex          *string   `json:"sex,omitempty"`
-	Birthday     time.Time `json:"birthday"`
-	ClientS      *string   `json:"client_s,omitempty"`
+	Username     string           `json:"username"`
+	DisplayName  string           `json:"display_name"`
+	PasswordHash string           `json:"password_hash"`
+	Bio          *string          `json:"bio,omitempty"`
+	Sex          *string          `json:"sex,omitempty"`
+	Birthday     time.Time        `json:"birthday"`
+	ClientS      *json.RawMessage `json:"client_s,omitempty"`
 }
 
 type CreateExerciseRequest struct {
-	UserID           *string          `json:"user_id"`
+	UserID           *string          `json:"user_id,omitempty"`
 	Name             string           `json:"name"`
-	AlternativeNames *[]string        `json:"alternative_names"`
-	Explanation      *string          `json:"explanation"`
-	ClientS          *json.RawMessage `json:"client_s"`
+	AlternativeNames *[]string        `json:"alternative_names,omitempty"`
+	Explanation      *string          `json:"explanation,omitempty"`
+	ClientS          *json.RawMessage `json:"client_s,omitempty"`
 }
 
 // Turns request into something the internal/persistence layer can work with(parse uuids, etc)
@@ -77,6 +79,7 @@ func (req createSessionRequest) toNewSession() (persistence.NewSession, error) {
 		BurnedCals:             req.BurnedCals,
 		UserNotes:              req.UserNotes,
 		Activities:             activities,
+		ClientS:                req.ClientS,
 	}, nil
 }
 
@@ -98,6 +101,7 @@ func (req createActivityRequest) toNewActivity() (persistence.NewActivity, error
 		StartTime:       req.StartTime,
 		EndTime:         req.EndTime,
 		PerceivedEffort: req.PerceivedEffort,
+		ClientS:         req.ClientS,
 	}, nil
 }
 
@@ -111,6 +115,7 @@ func (req CreateUserRequest) toNewUser() (persistence.NewUser, error) {
 		Birthday:      req.Birthday,
 		CreatedAt:     time.Now(),
 		LastUpdatedAt: time.Time{},
+		ClientS:       req.ClientS,
 	}, nil
 }
 
@@ -135,7 +140,7 @@ func (req CreateExerciseRequest) toNewExercise() (persistence.NewExercise, error
 	}, nil
 }
 
-// / RESPONSE
+// RESPONSES
 type sessionResponse struct {
 	ID                     string             `json:"id"`
 	UserID                 string             `json:"user_id"`
@@ -148,37 +153,40 @@ type sessionResponse struct {
 	BurnedCals             *int32             `json:"burned_cals,omitempty"`
 	UserNotes              *string            `json:"user_notes,omitempty"`
 	Activities             []activityResponse `json:"activities"`
+	ClientS                *json.RawMessage   `json:"client_s,omitempty"`
 }
 
 type activityResponse struct {
-	ID               string    `json:"id"`
-	ExerciseID       *string   `json:"exercise_id,omitempty"`
-	ActivityType     string    `json:"activity_type"`
-	Reps             *int32    `json:"reps,omitempty"`
-	Weight           *float32  `json:"weight,omitempty"`
-	SortOrder        int32     `json:"sort_order"`
-	StartTime        time.Time `json:"start_time"`
-	EndTime          time.Time `json:"end_time"`
-	TotalTimeSeconds float64   `json:"total_time_seconds"`
-	PerceivedEffort  *int32    `json:"perceived_effort,omitempty"`
+	ID               string           `json:"id"`
+	ExerciseID       *string          `json:"exercise_id,omitempty"`
+	ActivityType     string           `json:"activity_type"`
+	Reps             *int32           `json:"reps,omitempty"`
+	Weight           *float32         `json:"weight,omitempty"`
+	SortOrder        int32            `json:"sort_order"`
+	StartTime        time.Time        `json:"start_time"`
+	EndTime          time.Time        `json:"end_time"`
+	TotalTimeSeconds float64          `json:"total_time_seconds"`
+	PerceivedEffort  *int32           `json:"perceived_effort,omitempty"`
+	ClientS          *json.RawMessage `json:"client_s,omitempty"`
 }
 
 type userResponse struct {
-	ID          string    `json:"id"`
-	Username    string    `json:"username"`
-	DisplayName string    `json:"display_name"`
-	Bio         *string   `json:"bio,omitempty"`
-	Sex         *string   `json:"sex,omitempty"`
-	Birthday    time.Time `json:"birthday"`
+	ID          string           `json:"id"`
+	Username    string           `json:"username"`
+	DisplayName string           `json:"display_name"`
+	Bio         *string          `json:"bio,omitempty"`
+	Sex         *string          `json:"sex,omitempty"`
+	Birthday    time.Time        `json:"birthday"`
+	ClientS     *json.RawMessage `json:"client_s,omitempty"`
 }
 
 type exerciseResponse struct {
 	ID               string           `json:"id"`
-	UserID           *string          `json:"user_id"`
+	UserID           *string          `json:"user_id,omitempty"`
 	Name             string           `json:"name"`
-	AlternativeNames *[]string        `json:"alternative_names"`
-	Explanation      *string          `json:"explanation"`
-	ClientS          *json.RawMessage `json:"client_s"`
+	AlternativeNames *[]string        `json:"alternative_names,omitempty"`
+	Explanation      *string          `json:"explanation,omitempty"`
+	ClientS          *json.RawMessage `json:"client_s,omitempty"`
 	CreatedAt        time.Time        `json:"created_at"`
 }
 
@@ -214,6 +222,7 @@ func toSessionResponse(session db.Session, activities []db.Activity) (sessionRes
 		BurnedCals:             persistence.FromPgInt4Ptr(session.BurnedCals),
 		UserNotes:              persistence.FromPgTextPtr(session.UserNotes),
 		Activities:             activityResponses,
+		ClientS:                (*json.RawMessage)(&session.ClientS),
 	}, nil
 }
 
@@ -240,6 +249,7 @@ func toActivityResponse(a db.Activity) (activityResponse, error) {
 		EndTime:          a.EndTime.Time,
 		TotalTimeSeconds: persistence.FromPgInterval(a.TotalTime).Seconds(),
 		PerceivedEffort:  persistence.FromPgInt4Ptr(a.PerceivedEffort),
+		ClientS:          (*json.RawMessage)(&a.ClientS),
 	}, nil
 }
 
@@ -256,6 +266,7 @@ func toUserResponse(user db.User) (userResponse, error) {
 		Bio:         persistence.FromPgTextPtr(user.Bio),
 		Sex:         persistence.FromPgTextPtr(user.Sex),
 		Birthday:    user.Birthday.Time,
+		ClientS:     (*json.RawMessage)(&user.ClientS),
 	}, err
 }
 

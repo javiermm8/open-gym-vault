@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -19,10 +20,16 @@ type NewUser struct {
 	Birthday      time.Time
 	CreatedAt     time.Time
 	LastUpdatedAt time.Time
+	ClientS       *json.RawMessage
 }
 
 func (s *Store) CreateUser(ctx context.Context, in NewUser) (db.User, error) {
 	var user db.User
+
+	var clientStuff json.RawMessage
+	if in.ClientS != nil {
+		clientStuff = *in.ClientS
+	}
 
 	err := s.WithTx(ctx, func(q *db.Queries) error {
 		var err error
@@ -35,6 +42,7 @@ func (s *Store) CreateUser(ctx context.Context, in NewUser) (db.User, error) {
 			Birthday:      ToPgDate(in.Birthday),
 			CreatedAt:     ToPgTimestamptz(time.Now()),
 			LastUpdatedAt: ToPgTimestamptz(time.Time{}),
+			ClientS:       clientStuff,
 		})
 		if err != nil {
 			return fmt.Errorf("creating user: %w", err)
@@ -44,6 +52,21 @@ func (s *Store) CreateUser(ctx context.Context, in NewUser) (db.User, error) {
 	})
 	if err != nil {
 		return db.User{}, err
+	}
+
+	return user, nil
+}
+
+func (s *Store) QueryUser(ctx context.Context, id string) (db.User, error) {
+	userUUID, err := uuid.Parse(id)
+	if err != nil {
+		return db.User{}, fmt.Errorf("Quering user: Parse uuid: %w", err)
+	}
+	userID := ToPgUUID(userUUID)
+
+	user, err := s.Queries.GetUserByID(ctx, userID)
+	if err != nil {
+		return db.User{}, fmt.Errorf("Quering user: %w", err)
 	}
 
 	return user, nil

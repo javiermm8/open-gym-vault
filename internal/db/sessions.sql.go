@@ -14,9 +14,9 @@ import (
 const createActivity = `-- name: CreateActivity :one
 INSERT INTO activities (
     session_id, exercise_id, activity_type, reps, weight,
-    sort_order, start_time, end_time, total_time, perceived_effort
+    sort_order, start_time, end_time, total_time, perceived_effort, client_s
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 RETURNING id, session_id, exercise_id, activity_type, reps, weight, sort_order, start_time, end_time, total_time, perceived_effort, created_at, last_updated_at, client_s
 `
 
@@ -31,6 +31,7 @@ type CreateActivityParams struct {
 	EndTime         pgtype.Timestamptz `json:"end_time"`
 	TotalTime       pgtype.Interval    `json:"total_time"`
 	PerceivedEffort pgtype.Int4        `json:"perceived_effort"`
+	ClientS         []byte             `json:"client_s"`
 }
 
 func (q *Queries) CreateActivity(ctx context.Context, arg CreateActivityParams) (Activity, error) {
@@ -45,6 +46,7 @@ func (q *Queries) CreateActivity(ctx context.Context, arg CreateActivityParams) 
 		arg.EndTime,
 		arg.TotalTime,
 		arg.PerceivedEffort,
+		arg.ClientS,
 	)
 	var i Activity
 	err := row.Scan(
@@ -69,9 +71,9 @@ func (q *Queries) CreateActivity(ctx context.Context, arg CreateActivityParams) 
 const createSession = `-- name: CreateSession :one
 INSERT INTO sessions (
     user_id, session_type, start_time, end_time,
-    total_time, total_weight, overall_perceived_effort, burned_cals, user_notes
+    total_time, total_weight, overall_perceived_effort, burned_cals, user_notes, client_s
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 RETURNING id, user_id, session_type, start_time, end_time, total_time, total_weight, overall_perceived_effort, burned_cals, user_notes, created_at, last_updated_at, client_s
 `
 
@@ -85,6 +87,7 @@ type CreateSessionParams struct {
 	OverallPerceivedEffort pgtype.Int4        `json:"overall_perceived_effort"`
 	BurnedCals             pgtype.Int4        `json:"burned_cals"`
 	UserNotes              pgtype.Text        `json:"user_notes"`
+	ClientS                []byte             `json:"client_s"`
 }
 
 func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error) {
@@ -98,6 +101,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 		arg.OverallPerceivedEffort,
 		arg.BurnedCals,
 		arg.UserNotes,
+		arg.ClientS,
 	)
 	var i Session
 	err := row.Scan(

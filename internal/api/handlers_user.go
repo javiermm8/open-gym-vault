@@ -71,3 +71,39 @@ func validateCreateUserRequest(req CreateUserRequest) error {
 
 	return nil
 }
+
+func (s *Server) GetUser(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	if err := validateGetUserRequest(id); err != nil {
+		writeErrorMessage(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	user, err := s.store.QueryUser(r.Context(), id)
+	if err != nil {
+		log.Printf("Get user: %v", err)
+		writeError(w, err)
+		return
+	}
+
+	resp, err := toUserResponse(user)
+	if err != nil {
+		log.Printf("CreateUser: building response: %v", err)
+		writeErrorMessage(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func validateGetUserRequest(id string) error {
+	if id == "" {
+		return errRequired("id")
+	}
+	if utf8.RuneCountInString(id) != 36 {
+		return errInvalid("id must be a valid user id")
+	}
+
+	return nil
+}

@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -18,6 +19,7 @@ type NewActivity struct {
 	StartTime       time.Time
 	EndTime         time.Time
 	PerceivedEffort *int32
+	ClientS         *json.RawMessage
 }
 
 type NewSession struct {
@@ -29,6 +31,7 @@ type NewSession struct {
 	BurnedCals             *int32
 	UserNotes              *string
 	Activities             []NewActivity
+	ClientS                *json.RawMessage
 }
 
 func (s *Store) CreateSessionWithActivities(ctx context.Context, in NewSession) (db.Session, []db.Activity, error) {
@@ -37,6 +40,11 @@ func (s *Store) CreateSessionWithActivities(ctx context.Context, in NewSession) 
 
 	err := s.WithTx(ctx, func(q *db.Queries) error {
 		totalWeight := computeTotalWeight(in.Activities)
+
+		var clientStuff json.RawMessage
+		if in.ClientS != nil {
+			clientStuff = *in.ClientS
+		}
 
 		var err error
 		session, err = q.CreateSession(ctx, db.CreateSessionParams{
@@ -49,6 +57,7 @@ func (s *Store) CreateSessionWithActivities(ctx context.Context, in NewSession) 
 			OverallPerceivedEffort: ToPgInt4Ptr(in.OverallPerceivedEffort),
 			BurnedCals:             ToPgInt4Ptr(in.BurnedCals),
 			UserNotes:              ToPgTextPtr(in.UserNotes),
+			ClientS:                clientStuff,
 		})
 		if err != nil {
 			return fmt.Errorf("creating session: %w", err)
@@ -56,6 +65,11 @@ func (s *Store) CreateSessionWithActivities(ctx context.Context, in NewSession) 
 
 		activities = make([]db.Activity, 0, len(in.Activities))
 		for i, a := range in.Activities {
+			var clientStuff json.RawMessage
+			if a.ClientS != nil {
+				clientStuff = *a.ClientS
+			}
+
 			activity, err := q.CreateActivity(ctx, db.CreateActivityParams{
 				SessionID:       session.ID,
 				ExerciseID:      ToPgUUIDPtr(a.ExerciseID),
@@ -67,6 +81,7 @@ func (s *Store) CreateSessionWithActivities(ctx context.Context, in NewSession) 
 				EndTime:         ToPgTimestamptz(a.EndTime),
 				TotalTime:       ToPgInterval(a.EndTime.Sub(a.StartTime)),
 				PerceivedEffort: ToPgInt4Ptr(a.PerceivedEffort),
+				ClientS:         clientStuff,
 			})
 			if err != nil {
 				return fmt.Errorf("creating activity %d: %w", i, err)
@@ -92,4 +107,24 @@ func computeTotalWeight(activities []NewActivity) int32 {
 		total += *a.Weight * float32(*a.Reps)
 	}
 	return int32(total)
+}
+
+func (s *Store) GetSession(ctx context.Context, id string) (db.Session, []db.Activity, error) {
+	sessionUUID, err := uuid.Parse(id)
+	if err != nil {
+		return db.Session{}, nil, fmt.Errorf("Quering session: Parse uuid: %w", err)
+	}
+	sessionID := ToPgUUID(sessionUUID)
+
+	session, err := s.Queries.GetSessionByID(ctx, sessionID)
+	if err != nil {
+		return db.Session{}, nil, fmt.Errorf("Quering session: %w", err)
+	}
+
+	activities, err := s.Queries.ListActivitiesBySession(ctx, sessionID)
+	if err != nil {
+		return db.Session{}, nil, fmt.Errorf("Listing activities: %w", err)
+	}
+
+	return session, activities, nil
 }

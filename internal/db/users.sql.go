@@ -12,8 +12,8 @@ import (
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (username, display_name, password_hash, bio, sex, birthday, created_at, last_updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO users (username, display_name, password_hash, bio, sex, birthday, created_at, last_updated_at, client_s)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING id, username, display_name, password_hash, bio, sex, birthday, created_at, last_updated_at, client_s
 `
 
@@ -26,6 +26,7 @@ type CreateUserParams struct {
 	Birthday      pgtype.Date        `json:"birthday"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 	LastUpdatedAt pgtype.Timestamptz `json:"last_updated_at"`
+	ClientS       []byte             `json:"client_s"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -38,6 +39,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		arg.Birthday,
 		arg.CreatedAt,
 		arg.LastUpdatedAt,
+		arg.ClientS,
 	)
 	var i User
 	err := row.Scan(

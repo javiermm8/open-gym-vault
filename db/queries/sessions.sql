@@ -1,9 +1,9 @@
 -- name: CreateSession :one
 INSERT INTO sessions (
     user_id, session_type, start_time, end_time,
-    total_time, total_weight, overall_perceived_effort, burned_cals, user_notes
+    total_time, total_weight, overall_perceived_effort, burned_cals, user_notes, client_s
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 RETURNING *;
 
 -- name: ListSessionsByUser :many
@@ -15,9 +15,9 @@ SELECT * FROM sessions WHERE id = $1;
 -- name: CreateActivity :one
 INSERT INTO activities (
     session_id, exercise_id, activity_type, reps, weight,
-    sort_order, start_time, end_time, total_time, perceived_effort
+    sort_order, start_time, end_time, total_time, perceived_effort, client_s
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 RETURNING *;
 
 -- name: ListActivitiesBySession :many

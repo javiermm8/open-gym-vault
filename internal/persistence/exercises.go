@@ -28,6 +28,11 @@ func (s *Store) CreateExercise(ctx context.Context, in NewExercise) (db.Exercise
 		altNames = *in.AlternativeNames
 	}
 
+	var clientStuff json.RawMessage
+	if in.ClientS != nil {
+		clientStuff = *in.ClientS
+	}
+
 	err := s.WithTx(ctx, func(q *db.Queries) error {
 		var err error
 		exercise, err = q.CreateCustomExercise(ctx, db.CreateCustomExerciseParams{
@@ -35,7 +40,7 @@ func (s *Store) CreateExercise(ctx context.Context, in NewExercise) (db.Exercise
 			Name:             in.Name,
 			AlternativeNames: altNames,
 			Explanation:      ToPgTextPtr(in.Explanation),
-			ClientS:          *in.ClientS,
+			ClientS:          clientStuff,
 		})
 		if err != nil {
 			return fmt.Errorf("creating exercise: %w", err)

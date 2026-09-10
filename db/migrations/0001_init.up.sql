@@ -73,17 +73,39 @@ CREATE TABLE activities (
     last_updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     client_s         JSONB,
 
-    CONSTRAINT valid_activity_type CHECK (activity_type IN ('exercise', 'rest')),
+    CONSTRAINT valid_activity_type CHECK (activity_type IN ('exercise', 'rest', 'other')),
     CONSTRAINT exercise_id_matches_type CHECK (
         (activity_type = 'exercise' AND exercise_id IS NOT NULL) OR
-        (activity_type = 'rest'     AND exercise_id IS NULL)
+        (activity_type = 'rest'     AND exercise_id IS NULL) OR
+        activity_type = 'other'
     ),
     CONSTRAINT valid_activity_effort CHECK (
-        perceived_effort IS NULL OR perceived_effort BETWEEN 1 AND 10
+        (activity_type = 'exercise' AND perceived_effort IS NULL OR perceived_effort BETWEEN 1 AND 10) OR
+        (activity_type = 'rest'     AND perceived_effort IS NULL) OR
+        activity_type = 'other'
     ),
     CONSTRAINT valid_activity_times CHECK (end_time >= start_time),
-    CONSTRAINT unique_session_sort_order UNIQUE (session_id, sort_order)
+    CONSTRAINT unique_session_sort_order UNIQUE (session_id, sort_order),
+    CONSTRAINT valid_activity_reps CHECK (
+        (activity_type = 'exercise' AND reps IS NOT NULL) OR
+        (activity_type = 'rest' AND reps IS NULL) OR
+        activity_type = 'other'
+    ),
+    CONSTRAINT valid_activity_weight CHECK (
+        (activity_type = 'exercise' AND weight IS NOT NULL) OR
+        (activity_type = 'rest' AND weight IS NULL) OR
+        activity_type = 'other'
+    )
 );
 
 CREATE INDEX idx_activities_session_id ON activities(session_id);
 CREATE INDEX idx_activities_exercise_id ON activities(exercise_id);
+
+CREATE TABLE auth_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL DEFAULT now()
+)
+
+CREATE INDEX idx_auth_tokens_user_id ON auth_tokens(user_id);

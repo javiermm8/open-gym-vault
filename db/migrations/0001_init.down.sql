@@ -2,3 +2,4 @@ DROP TABLE IF EXISTS activities;
 DROP TABLE IF EXISTS sessions;
 DROP TABLE IF EXISTS exercises;
 DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS auth_tokens;
