@@ -9,7 +9,7 @@ func (s *Server) routes() http.Handler {
 	// AUTH
 	mux.HandleFunc("POST /auth/register", s.Register)
 	mux.HandleFunc("POST /auth/login", s.Login)
-	mux.HandleFunc("POST /auth/logout", s.Logout) // This one needs cases for no token provided or bad requests in general
+	mux.HandleFunc("POST /auth/logout", s.Logout)
 
 	// POSTs
 	mux.HandleFunc("POST /new_session", s.RequireAuth(s.CreateSession))

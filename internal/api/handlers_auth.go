@@ -80,6 +80,9 @@ func (s *Server) Logout(w http.ResponseWriter, r *http.Request) {
 			writeErrorMessage(w, http.StatusInternalServerError, "failed to log out")
 			return
 		}
+	} else {
+		writeErrorMessage(w, http.StatusBadRequest, "authentication required")
+		return
 	}
 	clearAuthCookie(w)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "logged out"})
