@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/jackc/pgx/v5"
@@ -17,8 +18,10 @@ const (
 
 // Handle db errors and give them an appropiate http status code
 func writeError(w http.ResponseWriter, err error) {
+	log.Println(err)
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
+		log.Println(pgErr.Code)
 		switch pgErr.Code {
 		case sqlStateCheckViolation:
 			writeErrorMessage(w, http.StatusBadRequest, "invalid data: "+pgErr.Message)

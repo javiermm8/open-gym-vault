@@ -42,7 +42,7 @@ func (s *Store) Register(ctx context.Context, username, displayName, password st
 		CreatedAt:    ToPgTimestamptz(time.Now()),
 	})
 	if err != nil {
-		return db.User{}, fmt.Errorf("creating usr: w%", err)
+		return db.User{}, fmt.Errorf("creating usr: %w", err)
 	}
 	return user, nil
 }
