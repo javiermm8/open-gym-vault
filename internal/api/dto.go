@@ -122,7 +122,6 @@ func (req CreateExerciseRequest) toNewExercise(userID string) (persistence.NewEx
 // RESPONSES
 type sessionResponse struct {
 	ID                     string             `json:"id"`
-	UserID                 string             `json:"user_id"`
 	SessionType            string             `json:"session_type"`
 	StartTime              time.Time          `json:"start_time"`
 	EndTime                time.Time          `json:"end_time"`
@@ -149,6 +148,12 @@ type activityResponse struct {
 	ClientS          *json.RawMessage `json:"client_s,omitempty"`
 }
 
+type listSessionShortResponse struct {
+	ID        string           `json:"id"`
+	StartTime time.Time        `json:"start_time"`
+	ClientS   *json.RawMessage `json:"client_s,omitempty"`
+}
+
 type userResponse struct {
 	ID          string           `json:"id"`
 	Username    string           `json:"username"`
@@ -170,8 +175,9 @@ type exerciseFullResponse struct {
 }
 
 type exerciseShortResponse struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID      string           `json:"id"`
+	Name    string           `json:"name"`
+	ClientS *json.RawMessage `json:"client_s,omitempty"`
 }
 
 type authResponse struct {
@@ -192,7 +198,6 @@ func toSessionResponse(session db.Session, activities []db.Activity) sessionResp
 
 	return sessionResponse{
 		ID:                     session.ID,
-		UserID:                 session.UserID,
 		SessionType:            session.SessionType,
 		StartTime:              session.StartTime.Time,
 		EndTime:                session.EndTime.Time,
@@ -222,6 +227,14 @@ func toActivityResponse(a db.Activity) activityResponse {
 	}
 }
 
+func toListShortSessionResponse(session db.Session) listSessionShortResponse {
+	return listSessionShortResponse{
+		ID:        session.ID,
+		StartTime: session.StartTime.Time,
+		ClientS:   (*json.RawMessage)(&session.ClientS),
+	}
+}
+
 func toUserResponse(user db.User) userResponse {
 	return userResponse{
 		ID:          user.ID,
@@ -248,7 +261,8 @@ func toExerciseFullResponse(exercise db.Exercise) exerciseFullResponse {
 
 func toExerciseShortResponse(exercise db.Exercise) exerciseShortResponse {
 	return exerciseShortResponse{
-		ID:   exercise.ID,
-		Name: exercise.Name,
+		ID:      exercise.ID,
+		Name:    exercise.Name,
+		ClientS: (*json.RawMessage)(&exercise.ClientS),
 	}
 }

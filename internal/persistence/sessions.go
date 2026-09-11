@@ -120,3 +120,21 @@ func (s *Store) GetSession(ctx context.Context, sessionID string) (db.Session, [
 
 	return session, activities, nil
 }
+
+func (s *Store) QuerySessions(ctx context.Context, userID string) ([]db.Session, error) {
+	sessions, err := s.Queries.ListSessionsByUser(ctx, userID)
+	if err != nil {
+		return []db.Session{}, fmt.Errorf("Quering sessions: %w", err)
+	}
+
+	return sessions, nil
+}
+
+func (s *Store) QueryActivities(ctx context.Context, sessionID string) ([]db.Activity, error) {
+	activity, err := s.Queries.ListActivitiesBySession(ctx, sessionID)
+	if err != nil {
+		return []db.Activity{}, fmt.Errorf("Quering activities: %w", err)
+	}
+
+	return activity, nil
+}

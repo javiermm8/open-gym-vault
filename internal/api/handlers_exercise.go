@@ -93,16 +93,18 @@ func (s Server) ListExercises(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(exercises) <= 0 {
+		writeJSON(w, http.StatusNoContent, nil)
+		return
+	}
+
 	full := r.URL.Query().Get("full")
 	if full == "true" {
 		var exerciseResponses []exerciseFullResponse
 		for _, n := range exercises {
-			resp := toExerciseFullResponse(n)
-
-			exerciseResponses = append(exerciseResponses, resp)
+			exerciseResponses = append(exerciseResponses, toExerciseFullResponse(n))
 		}
 		writeJSON(w, http.StatusOK, exerciseResponses)
-
 	} else if full == "false" || full == "" {
 		var exerciseResponses []exerciseShortResponse
 		for _, n := range exercises {

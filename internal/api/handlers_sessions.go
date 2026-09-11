@@ -112,3 +112,41 @@ func validateGetSessionRequest(id string) error {
 
 	return nil
 }
+
+func (s *Server) ListSessions(w http.ResponseWriter, r *http.Request) {
+	sessions, err := s.store.QuerySessions(r.Context(), AuthenticateUserID(r))
+	if err != nil {
+		log.Printf("List Sessions: %v", err)
+		writeError(w, err)
+		return
+	}
+
+	if len(sessions) <= 0 {
+		writeJSON(w, http.StatusNoContent, nil)
+		return
+	}
+
+	full := r.URL.Query().Get("full")
+	if full == "true" {
+		var resp []sessionResponse
+		for _, n := range sessions {
+			activities, err := s.store.QueryActivities(r.Context(), n.ID)
+			if err != nil {
+				log.Printf("List Activity: %v", err)
+				writeError(w, err)
+				return
+			}
+			resp = append(resp, toSessionResponse(n, activities))
+		}
+		writeJSON(w, http.StatusOK, resp)
+	} else if full == "false" || full == "" {
+		var resp []listSessionShortResponse
+		for _, n := range sessions {
+			resp = append(resp, toListShortSessionResponse(n))
+		}
+		writeJSON(w, http.StatusOK, resp)
+	} else {
+		writeErrorMessage(w, http.StatusBadRequest, "Available flags: full=true/false")
+		return
+	}
+}

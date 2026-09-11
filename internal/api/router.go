@@ -6,6 +6,14 @@ import "net/http"
 func (s *Server) routes() http.Handler {
 	mux := http.NewServeMux()
 
+	// TODOs:
+	// -Birthady thing in auth
+	// - Rate limits
+	// - Stats
+	// - Session templates
+	// - Docs/openapi
+	// - Better log error mgsgs
+
 	// AUTH
 	mux.HandleFunc("POST /auth/register", s.Register)
 	mux.HandleFunc("POST /auth/login", s.Login)
@@ -23,6 +31,7 @@ func (s *Server) routes() http.Handler {
 
 	// GETs lists
 	mux.HandleFunc("GET /exercises", s.RequireAuth(s.ListExercises))
+	mux.HandleFunc("GET /sessions", s.RequireAuth(s.ListSessions))
 
 	return withMiddleware(mux)
 }
