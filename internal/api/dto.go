@@ -54,6 +54,17 @@ type CreateExerciseRequest struct {
 	ClientS          *json.RawMessage `json:"client_s,omitempty"`
 }
 
+type registerRequest struct {
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	Password    string `json:"password"`
+}
+
+type loginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
 // Turns request into something the internal/persistence layer can work with(parse uuids, etc)
 func (req createSessionRequest) toNewSession() (persistence.NewSession, error) {
 	userID, err := uuid.Parse(req.UserID)
@@ -188,6 +199,14 @@ type exerciseResponse struct {
 	Explanation      *string          `json:"explanation,omitempty"`
 	ClientS          *json.RawMessage `json:"client_s,omitempty"`
 	CreatedAt        time.Time        `json:"created_at"`
+}
+
+type authResponse struct {
+	Token       string    `json:"token"`
+	ExpiresAt   time.Time `json:"expires_at"`
+	UserID      string    `json:"user_id"`
+	Username    string    `json:"username"`
+	DisplayName string    `json:"display_name"`
 }
 
 // Builds the JSON response from the generated db types

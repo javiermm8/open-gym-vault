@@ -6,6 +6,9 @@ import (
 	"log"
 	"net/http"
 	"unicode/utf8"
+
+	"github.com/google/uuid"
+	"github.com/javiermm8/open-gym-vault/internal/persistence"
 )
 
 // Handles POST /sessions
@@ -103,6 +106,18 @@ func (s *Server) GetSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID, err := persistence.FromPgUUID(session.UserID)
+	if err != nil {
+		log.Printf("GetSession: FromPgUUID: %v", err)
+		writeError(w, err)
+		return
+	}
+
+	if AuthenticateUserID(r) != userID {
+		writeErrorMessage(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
 	resp, err := toSessionResponse(session, activities)
 	if err != nil {
 		log.Printf("GetSession: building response: %v", err)
@@ -119,6 +134,9 @@ func validateGetSessionRequest(id string) error {
 		return errRequired("id")
 	}
 	if utf8.RuneCountInString(id) != 36 {
+		return errInvalid("id must be a valid session id")
+	}
+	if err := uuid.Validate(id); err != nil {
 		return errInvalid("id must be a valid session id")
 	}
 

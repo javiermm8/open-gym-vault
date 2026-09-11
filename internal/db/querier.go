@@ -12,6 +12,7 @@ import (
 
 type Querier interface {
 	CreateActivity(ctx context.Context, arg CreateActivityParams) (Activity, error)
+	CreateAuthToken(ctx context.Context, arg CreateAuthTokenParams) (AuthToken, error)
 	CreateCustomExercise(ctx context.Context, arg CreateCustomExerciseParams) (Exercise, error)
 	CreateGlobalExercise(ctx context.Context, arg CreateGlobalExerciseParams) (Exercise, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
@@ -22,10 +23,13 @@ type Querier interface {
 	// deletion) — that RESTRICT can otherwise conflict with the CASCADE from
 	// users -> exercises during a single `DELETE FROM users`.
 	DeleteActivitiesByUser(ctx context.Context, userID pgtype.UUID) error
+	DeleteAuthToken(ctx context.Context, tokenHash string) error
 	// Deletes the user's own custom exercises. Must run after
 	// DeleteActivitiesByUser so no activity still references them.
 	DeleteExercisesByUser(ctx context.Context, userID pgtype.UUID) error
+	DeleteExpiredAuthTokens(ctx context.Context) error
 	DeleteUser(ctx context.Context, id pgtype.UUID) error
+	GetAuthTokenByHash(ctx context.Context, tokenHash string) (AuthToken, error)
 	GetExerciseByID(ctx context.Context, id pgtype.UUID) (Exercise, error)
 	GetSessionByID(ctx context.Context, id pgtype.UUID) (Session, error)
 	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
@@ -35,6 +39,7 @@ type Querier interface {
 	ListExercisesForUser(ctx context.Context, userID pgtype.UUID) ([]Exercise, error)
 	ListGlobalExercises(ctx context.Context) ([]Exercise, error)
 	ListSessionsByUser(ctx context.Context, userID pgtype.UUID) ([]Session, error)
+	RefreshAuthTokenExpiry(ctx context.Context, arg RefreshAuthTokenExpiryParams) error
 }
 
 var _ Querier = (*Queries)(nil)

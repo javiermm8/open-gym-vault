@@ -9,7 +9,7 @@ CREATE TABLE users (
     sex             TEXT,
     birthday        DATE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-    last_updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_updated_at TIMESTAMPTZ,
     client_s        JSONB
 );
 
@@ -102,10 +102,11 @@ CREATE INDEX idx_activities_session_id ON activities(session_id);
 CREATE INDEX idx_activities_exercise_id ON activities(exercise_id);
 
 CREATE TABLE auth_tokens (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES user(id) ON DELETE CASCADE,
-    token_hash TEXT NOT NULL UNIQUE,
-    expires_at TIMESTAMPTZ NOT NULL DEFAULT now()
-)
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash  TEXT NOT NULL UNIQUE,
+    expires_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
 CREATE INDEX idx_auth_tokens_user_id ON auth_tokens(user_id);

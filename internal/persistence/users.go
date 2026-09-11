@@ -3,11 +3,14 @@ package persistence
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/javiermm8/open-gym-vault/internal/auth"
 	"github.com/javiermm8/open-gym-vault/internal/db"
 )
 
@@ -21,6 +24,84 @@ type NewUser struct {
 	CreatedAt     time.Time
 	LastUpdatedAt time.Time
 	ClientS       *json.RawMessage
+}
+
+var ErrInvalidCredentials = errors.New("invalid username or password")
+var ErrTokenInvalidOrExpired = errors.New("token invalid or expired")
+
+func (s *Store) Register(ctx context.Context, username, displayName, password string) (db.User, error) {
+	hash, err := auth.HashPassword(password)
+	if err != nil {
+		return db.User{}, err
+	}
+
+	user, err := s.Queries.CreateUser(ctx, db.CreateUserParams{
+		Username:     username,
+		DisplayName:  displayName,
+		PasswordHash: hash,
+		CreatedAt:    ToPgTimestamptz(time.Now()),
+	})
+	if err != nil {
+		return db.User{}, fmt.Errorf("creating usr: w%", err)
+	}
+	return user, nil
+}
+
+func (s *Store) Login(ctx context.Context, username, password string) (rawToken string, expiresAt time.Time, user db.User, err error) {
+	user, err = s.Queries.GetUserByUsername(ctx, username)
+	if err != nil {
+		return "", time.Time{}, db.User{}, ErrInvalidCredentials
+	}
+
+	if !auth.CheckPassword(user.PasswordHash, password) {
+		return "", time.Time{}, db.User{}, ErrInvalidCredentials
+	}
+
+	raw, hash, err := auth.GenrateRawToken()
+	if err != nil {
+		return "", time.Time{}, db.User{}, fmt.Errorf("generating raw token: %w", err)
+	}
+	expiresAt = time.Now().Add(auth.TokenTTL)
+
+	if _, err := s.Queries.CreateAuthToken(ctx, db.CreateAuthTokenParams{
+		UserID:    user.ID,
+		TokenHash: hash,
+		ExpiresAt: ToPgTimestamptz(expiresAt),
+	}); err != nil {
+		return "", time.Time{}, db.User{}, fmt.Errorf("creating auth token: %w", err)
+	}
+
+	return raw, expiresAt, user, nil
+}
+
+func (s *Store) ExtendTokenExpiry(ctx context.Context, rawToken string) (uuid.UUID, error) {
+	hash := auth.HashToken(rawToken)
+
+	token, err := s.Queries.GetAuthTokenByHash(ctx, hash)
+	if err != nil {
+		return uuid.UUID{}, ErrTokenInvalidOrExpired
+	}
+
+	if token.ExpiresAt.Time.Before(time.Now()) {
+		if err = s.Queries.DeleteAuthToken(ctx, auth.HashToken(hash)); err != nil {
+			log.Printf("deleting auth token: %w", err)
+		}
+		return uuid.UUID{}, ErrTokenInvalidOrExpired
+	}
+
+	newExpiry := time.Now().Add(auth.TokenTTL)
+	if err := s.Queries.RefreshAuthTokenExpiry(ctx, db.RefreshAuthTokenExpiryParams{
+		ID:        token.ID,
+		ExpiresAt: ToPgTimestamptz(newExpiry),
+	}); err != nil {
+		return uuid.UUID{}, fmt.Errorf("refreshing auth token: %w", err)
+	}
+
+	return FromPgUUID(token.UserID)
+}
+
+func (s *Store) Logout(ctx context.Context, rawToken string) error {
+	return s.Queries.DeleteAuthToken(ctx, auth.HashToken(rawToken))
 }
 
 func (s *Store) CreateUser(ctx context.Context, in NewUser) (db.User, error) {

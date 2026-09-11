@@ -6,6 +6,7 @@
 //	go run ./cmd/migrate down          # roll back the most recent migration
 //	go run ./cmd/migrate down-all      # roll back all migrations
 //	go run ./cmd/migrate version       # print current migration version
+//	go run ./cmd/migrate force <ver>   # force migration version (use -1 to clear dirty state)
 //
 // Reads the connection string from the DATABASE_URL environment variable.
 package main
@@ -63,6 +64,15 @@ func main() {
 		}
 		fmt.Printf("version=%d dirty=%v\n", version, dirty)
 		return
+	case "force":
+		if len(os.Args) < 3 {
+			log.Fatal("usage: migrate force <version>")
+		}
+		var version int
+		if _, err := fmt.Sscanf(os.Args[2], "%d", &version); err != nil {
+			log.Fatalf("invalid version %q: %v", os.Args[2], err)
+		}
+		err = m.Force(version)
 	default:
 		log.Fatalf("unknown command %q", os.Args[1])
 	}
