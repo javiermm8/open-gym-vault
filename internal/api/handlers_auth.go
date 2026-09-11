@@ -65,11 +65,9 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 	setAuthCookie(w, rawToken, expiresAt)
 
 	writeJSON(w, http.StatusOK, authResponse{
-		Token:       rawToken,
-		ExpiresAt:   expiresAt,
-		UserID:      user.ID,
-		Username:    user.Username,
-		DisplayName: user.DisplayName,
+		Token:     rawToken,
+		ExpiresAt: expiresAt,
+		UserID:    user.ID,
 	})
 }
 

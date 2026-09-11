@@ -160,7 +160,7 @@ type userResponse struct {
 	DisplayName string           `json:"display_name"`
 	Bio         *string          `json:"bio,omitempty"`
 	Sex         *string          `json:"sex,omitempty"`
-	Birthday    time.Time        `json:"birthday"`
+	Birthday    string           `json:"birthday,omitempty"`
 	ClientS     *json.RawMessage `json:"client_s,omitempty"`
 }
 
@@ -184,8 +184,8 @@ type authResponse struct {
 	Token       string    `json:"token"`
 	ExpiresAt   time.Time `json:"expires_at"`
 	UserID      string    `json:"user_id"`
-	Username    string    `json:"username"`
-	DisplayName string    `json:"display_name"`
+	Username    string    `json:"username,omitempty"`
+	DisplayName string    `json:"display_name,omitempty"`
 }
 
 // Builds the JSON response from the generated db types
@@ -236,15 +236,28 @@ func toListShortSessionResponse(session db.Session) listSessionShortResponse {
 }
 
 func toUserResponse(user db.User) userResponse {
-	return userResponse{
-		ID:          user.ID,
-		Username:    user.Username,
-		DisplayName: user.DisplayName,
-		Bio:         persistence.FromPgTextPtr(user.Bio),
-		Sex:         persistence.FromPgTextPtr(user.Sex),
-		Birthday:    user.Birthday.Time,
-		ClientS:     (*json.RawMessage)(&user.ClientS),
+	if user.Birthday.Time.IsZero() {
+		return userResponse{
+			ID:          user.ID,
+			Username:    user.Username,
+			DisplayName: user.DisplayName,
+			Bio:         persistence.FromPgTextPtr(user.Bio),
+			Sex:         persistence.FromPgTextPtr(user.Sex),
+			Birthday:    "",
+			ClientS:     (*json.RawMessage)(&user.ClientS),
+		}
+	} else {
+		return userResponse{
+			ID:          user.ID,
+			Username:    user.Username,
+			DisplayName: user.DisplayName,
+			Bio:         persistence.FromPgTextPtr(user.Bio),
+			Sex:         persistence.FromPgTextPtr(user.Sex),
+			Birthday:    user.Birthday.Time.String(),
+			ClientS:     (*json.RawMessage)(&user.ClientS),
+		}
 	}
+
 }
 
 func toExerciseFullResponse(exercise db.Exercise) exerciseFullResponse {

@@ -7,7 +7,7 @@ func (s *Server) routes() http.Handler {
 	mux := http.NewServeMux()
 
 	// TODOs:
-	// -Birthady thing in auth
+	// - update profile
 	// - Rate limits
 	// - Stats
 	// - Session templates
