@@ -53,3 +53,18 @@ func (s *Store) CreateExercise(ctx context.Context, in NewExercise) (db.Exercise
 
 	return exercise, nil
 }
+
+func (s *Store) QueryExecise(ctx context.Context, id string) (db.Exercise, error) {
+	exerciseUUID, err := uuid.Parse(id)
+	if err != nil {
+		return db.Exercise{}, fmt.Errorf("Quering exercise: Parse uuid: %w", err)
+	}
+	exerciseID := ToPgUUID(exerciseUUID)
+
+	exercise, err := s.Queries.GetExerciseByID(ctx, exerciseID)
+	if err != nil {
+		return db.Exercise{}, fmt.Errorf("Quering exercise: %w", err)
+	}
+
+	return exercise, nil
+}
