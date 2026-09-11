@@ -18,7 +18,7 @@ RETURNING id, user_id, token_hash, expires_at, created_at
 `
 
 type CreateAuthTokenParams struct {
-	UserID    pgtype.UUID        `json:"user_id"`
+	UserID    string             `json:"user_id"`
 	TokenHash string             `json:"token_hash"`
 	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
 }

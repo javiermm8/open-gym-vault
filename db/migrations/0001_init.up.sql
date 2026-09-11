@@ -1,7 +1,15 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+CREATE OR REPLACE FUNCTION generate_prefixed_id(prefix TEXT)
+RETURNS TEXT
+LANGUAGE SQL
+VOLATILE
+AS $$
+    SELECT prefix || '_' || encode(gen_random_bytes(16), 'hex');
+$$;
+
 CREATE TABLE users (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id              TEXT PRIMARY KEY DEFAULT generate_prefixed_id('usr'),
     username        TEXT NOT NULL UNIQUE,
     display_name    TEXT NOT NULL,
     password_hash   TEXT NOT NULL,
@@ -13,10 +21,9 @@ CREATE TABLE users (
     client_s        JSONB
 );
 
--- Shared (user_id IS NULL) and custom (user_id set) exercises live in one table.
 CREATE TABLE exercises (
-    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id           UUID REFERENCES users(id) ON DELETE CASCADE, -- NULL = global/shared exercise
+    id                TEXT PRIMARY KEY DEFAULT generate_prefixed_id('exr'),
+    user_id           TEXT REFERENCES users(id) ON DELETE CASCADE, -- NULL in global exercises
     name              TEXT NOT NULL,
     alternative_names TEXT[],
     explanation       TEXT,
@@ -27,16 +34,13 @@ CREATE TABLE exercises (
 
 CREATE INDEX idx_exercises_user_id ON exercises(user_id);
 
--- Prevent a single user from creating two custom exercises with the same name.
--- (Global exercises, user_id IS NULL, are exempt from this and should be kept
--- unique by your seeding/admin process instead.)
 CREATE UNIQUE INDEX unique_user_exercise_name
     ON exercises(user_id, name)
     WHERE user_id IS NOT NULL;
 
 CREATE TABLE sessions (
-    id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id                  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id                       TEXT PRIMARY KEY DEFAULT generate_prefixed_id('ses'),
+    user_id                  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     session_type             TEXT NOT NULL,
     start_time               TIMESTAMPTZ NOT NULL,
     end_time                 TIMESTAMPTZ NOT NULL,
@@ -58,9 +62,9 @@ CREATE TABLE sessions (
 CREATE INDEX idx_sessions_user_id_start_time ON sessions(user_id, start_time DESC);
 
 CREATE TABLE activities (
-    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_id       UUID NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-    exercise_id      UUID REFERENCES exercises(id) ON DELETE RESTRICT,
+    id               TEXT PRIMARY KEY DEFAULT generate_prefixed_id('act'),
+    session_id       TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    exercise_id      TEXT REFERENCES exercises(id) ON DELETE RESTRICT,
     activity_type    TEXT NOT NULL,
     reps             INTEGER,
     weight           REAL, -- kg
@@ -103,7 +107,7 @@ CREATE INDEX idx_activities_exercise_id ON activities(exercise_id);
 
 CREATE TABLE auth_tokens (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token_hash  TEXT NOT NULL UNIQUE,
     expires_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()

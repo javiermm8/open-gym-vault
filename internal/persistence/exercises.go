@@ -6,12 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/javiermm8/open-gym-vault/internal/db"
 )
 
 type NewExercise struct {
-	UserID           uuid.UUID
+	UserID           string
 	Name             string
 	AlternativeNames *[]string
 	Explanation      *string
@@ -36,7 +35,7 @@ func (s *Store) CreateExercise(ctx context.Context, in NewExercise) (db.Exercise
 	err := s.WithTx(ctx, func(q *db.Queries) error {
 		var err error
 		exercise, err = q.CreateCustomExercise(ctx, db.CreateCustomExerciseParams{
-			UserID:           ToPgUUID(in.UserID),
+			UserID:           ToPgText(string(in.UserID)),
 			Name:             in.Name,
 			AlternativeNames: altNames,
 			Explanation:      ToPgTextPtr(in.Explanation),
@@ -54,13 +53,7 @@ func (s *Store) CreateExercise(ctx context.Context, in NewExercise) (db.Exercise
 	return exercise, nil
 }
 
-func (s *Store) QueryExecise(ctx context.Context, id string) (db.Exercise, error) {
-	exerciseUUID, err := uuid.Parse(id)
-	if err != nil {
-		return db.Exercise{}, fmt.Errorf("Quering exercise: Parse uuid: %w", err)
-	}
-	exerciseID := ToPgUUID(exerciseUUID)
-
+func (s *Store) QueryExecise(ctx context.Context, exerciseID string) (db.Exercise, error) {
 	exercise, err := s.Queries.GetExerciseByID(ctx, exerciseID)
 	if err != nil {
 		return db.Exercise{}, fmt.Errorf("Quering exercise: %w", err)
@@ -69,8 +62,8 @@ func (s *Store) QueryExecise(ctx context.Context, id string) (db.Exercise, error
 	return exercise, nil
 }
 
-func (s *Store) QueryExercises(ctx context.Context, userID uuid.UUID) ([]db.Exercise, error) {
-	exercises, err := s.Queries.ListExercisesForUser(ctx, ToPgUUID(userID))
+func (s *Store) QueryExercises(ctx context.Context, userID string) ([]db.Exercise, error) {
+	exercises, err := s.Queries.ListExercisesForUser(ctx, ToPgText(userID))
 	if err != nil {
 		return []db.Exercise{}, fmt.Errorf("Quering exercises: %w", err)
 

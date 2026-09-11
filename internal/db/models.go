@@ -9,9 +9,9 @@ import (
 )
 
 type Activity struct {
-	ID              pgtype.UUID        `json:"id"`
-	SessionID       pgtype.UUID        `json:"session_id"`
-	ExerciseID      pgtype.UUID        `json:"exercise_id"`
+	ID              string             `json:"id"`
+	SessionID       string             `json:"session_id"`
+	ExerciseID      pgtype.Text        `json:"exercise_id"`
 	ActivityType    string             `json:"activity_type"`
 	Reps            pgtype.Int4        `json:"reps"`
 	Weight          pgtype.Float4      `json:"weight"`
@@ -27,15 +27,15 @@ type Activity struct {
 
 type AuthToken struct {
 	ID        pgtype.UUID        `json:"id"`
-	UserID    pgtype.UUID        `json:"user_id"`
+	UserID    string             `json:"user_id"`
 	TokenHash string             `json:"token_hash"`
 	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
 type Exercise struct {
-	ID               pgtype.UUID        `json:"id"`
-	UserID           pgtype.UUID        `json:"user_id"`
+	ID               string             `json:"id"`
+	UserID           pgtype.Text        `json:"user_id"`
 	Name             string             `json:"name"`
 	AlternativeNames []string           `json:"alternative_names"`
 	Explanation      pgtype.Text        `json:"explanation"`
@@ -45,8 +45,8 @@ type Exercise struct {
 }
 
 type Session struct {
-	ID                     pgtype.UUID        `json:"id"`
-	UserID                 pgtype.UUID        `json:"user_id"`
+	ID                     string             `json:"id"`
+	UserID                 string             `json:"user_id"`
 	SessionType            string             `json:"session_type"`
 	StartTime              pgtype.Timestamptz `json:"start_time"`
 	EndTime                pgtype.Timestamptz `json:"end_time"`
@@ -61,7 +61,7 @@ type Session struct {
 }
 
 type User struct {
-	ID            pgtype.UUID        `json:"id"`
+	ID            string             `json:"id"`
 	Username      string             `json:"username"`
 	DisplayName   string             `json:"display_name"`
 	PasswordHash  string             `json:"password_hash"`

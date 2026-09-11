@@ -34,15 +34,8 @@ func (s *Server) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := persistence.FromPgUUID(user.ID)
-	if err != nil {
-		log.Printf("Register: %v", err)
-		writeErrorMessage(w, http.StatusInternalServerError, "internal server error")
-		return
-	}
-
 	writeJSON(w, http.StatusCreated, map[string]string{
-		"id":           userID.String(),
+		"id":           user.ID,
 		"username":     user.Username,
 		"display_name": user.DisplayName,
 	})
@@ -71,17 +64,10 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 
 	setAuthCookie(w, rawToken, expiresAt)
 
-	userID, err := persistence.FromPgUUID(user.ID)
-	if err != nil {
-		log.Printf("Login: %v", err)
-		writeErrorMessage(w, http.StatusInternalServerError, "internal server error")
-		return
-	}
-
 	writeJSON(w, http.StatusOK, authResponse{
 		Token:       rawToken,
 		ExpiresAt:   expiresAt,
-		UserID:      userID.String(),
+		UserID:      user.ID,
 		Username:    user.Username,
 		DisplayName: user.DisplayName,
 	})

@@ -4,8 +4,6 @@ import (
 	"log"
 	"net/http"
 	"unicode/utf8"
-
-	"github.com/javiermm8/open-gym-vault/internal/persistence"
 )
 
 const maxUsernameLength = 10
@@ -87,26 +85,12 @@ func (s *Server) GetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := persistence.FromPgUUID(user.ID)
-	if err != nil {
-		log.Printf("GetUser: FromPgUUID: %v", err)
-		writeError(w, err)
-		return
-	}
-
-	if AuthenticateUserID(r) != userID {
+	if AuthenticateUserID(r) != user.ID {
 		writeErrorMessage(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
-	resp, err := toUserResponse(user)
-	if err != nil {
-		log.Printf("CreateUser: building response: %v", err)
-		writeErrorMessage(w, http.StatusInternalServerError, "internal server error")
-		return
-	}
-
-	writeJSON(w, http.StatusOK, resp)
+	writeJSON(w, http.StatusOK, toUserResponse(user))
 }
 
 func validateGetUserRequest(id string) error {

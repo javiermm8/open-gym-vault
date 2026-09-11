@@ -52,11 +52,20 @@ func FromPgFloat4Ptr(v pgtype.Float4) *float32 {
 	return &f
 }
 
+func ToPgText(v string) pgtype.Text {
+	return pgtype.Text{String: v, Valid: true}
+}
+
 func ToPgTextPtr(v *string) pgtype.Text {
 	if v == nil {
 		return pgtype.Text{Valid: false}
 	}
 	return pgtype.Text{String: *v, Valid: true}
+}
+
+func FromPgText(v pgtype.Text) string {
+	s := v.String
+	return s
 }
 
 func FromPgTextPtr(v pgtype.Text) *string {

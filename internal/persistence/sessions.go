@@ -6,14 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/javiermm8/open-gym-vault/internal/db"
 )
 
 type NewActivity struct {
-	ExerciseID      *uuid.UUID // nil for rest activities
-	ActivityType    string     // "exercise" or "rest"
+	ExerciseID      *string // nil for rest activities
+	ActivityType    string  // "exercise" or "rest"
 	Reps            *int32
 	Weight          *float32 // kg
 	StartTime       time.Time
@@ -23,7 +21,7 @@ type NewActivity struct {
 }
 
 type NewSession struct {
-	UserID                 uuid.UUID
+	UserID                 string
 	SessionType            string
 	StartTime              time.Time
 	EndTime                time.Time
@@ -48,7 +46,7 @@ func (s *Store) CreateSessionWithActivities(ctx context.Context, in NewSession) 
 
 		var err error
 		session, err = q.CreateSession(ctx, db.CreateSessionParams{
-			UserID:                 ToPgUUID(in.UserID),
+			UserID:                 in.UserID,
 			SessionType:            in.SessionType,
 			StartTime:              ToPgTimestamptz(in.StartTime),
 			EndTime:                ToPgTimestamptz(in.EndTime),
@@ -72,7 +70,7 @@ func (s *Store) CreateSessionWithActivities(ctx context.Context, in NewSession) 
 
 			activity, err := q.CreateActivity(ctx, db.CreateActivityParams{
 				SessionID:       session.ID,
-				ExerciseID:      ToPgUUIDPtr(a.ExerciseID),
+				ExerciseID:      ToPgTextPtr(a.ExerciseID),
 				ActivityType:    a.ActivityType,
 				Reps:            ToPgInt4Ptr(a.Reps),
 				Weight:          ToPgFloat4Ptr(a.Weight),
@@ -109,13 +107,7 @@ func computeTotalWeight(activities []NewActivity) int32 {
 	return int32(total)
 }
 
-func (s *Store) GetSession(ctx context.Context, id string) (db.Session, []db.Activity, error) {
-	sessionUUID, err := uuid.Parse(id)
-	if err != nil {
-		return db.Session{}, nil, fmt.Errorf("Quering session: Parse uuid: %w", err)
-	}
-	sessionID := ToPgUUID(sessionUUID)
-
+func (s *Store) GetSession(ctx context.Context, sessionID string) (db.Session, []db.Activity, error) {
 	session, err := s.Queries.GetSessionByID(ctx, sessionID)
 	if err != nil {
 		return db.Session{}, nil, fmt.Errorf("Quering session: %w", err)

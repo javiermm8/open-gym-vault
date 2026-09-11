@@ -6,9 +6,6 @@ import (
 	"log"
 	"net/http"
 	"unicode/utf8"
-
-	"github.com/google/uuid"
-	"github.com/javiermm8/open-gym-vault/internal/persistence"
 )
 
 // Handles POST /sessions
@@ -24,11 +21,7 @@ func (s *Server) CreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newSession, err := req.toNewSession(AuthenticateUserID(r))
-	if err != nil {
-		writeErrorMessage(w, http.StatusBadRequest, err.Error())
-		return
-	}
+	newSession := req.toNewSession(AuthenticateUserID(r))
 
 	session, activities, err := s.store.CreateSessionWithActivities(r.Context(), newSession)
 	if err != nil {
@@ -37,12 +30,7 @@ func (s *Server) CreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := toSessionResponse(session, activities)
-	if err != nil {
-		log.Printf("CreateSession: building response: %v", err)
-		writeErrorMessage(w, http.StatusInternalServerError, "internal server error")
-		return
-	}
+	resp := toSessionResponse(session, activities)
 
 	writeJSON(w, http.StatusCreated, resp)
 }
@@ -103,24 +91,12 @@ func (s *Server) GetSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, err := persistence.FromPgUUID(session.UserID)
-	if err != nil {
-		log.Printf("GetSession: FromPgUUID: %v", err)
-		writeError(w, err)
-		return
-	}
-
-	if AuthenticateUserID(r) != userID {
+	if AuthenticateUserID(r) != session.UserID {
 		writeErrorMessage(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
-	resp, err := toSessionResponse(session, activities)
-	if err != nil {
-		log.Printf("GetSession: building response: %v", err)
-		writeErrorMessage(w, http.StatusInternalServerError, "internal server error")
-		return
-	}
+	resp := toSessionResponse(session, activities)
 
 	writeJSON(w, http.StatusOK, resp)
 
@@ -131,9 +107,6 @@ func validateGetSessionRequest(id string) error {
 		return errRequired("id")
 	}
 	if utf8.RuneCountInString(id) != 36 {
-		return errInvalid("id must be a valid session id")
-	}
-	if err := uuid.Validate(id); err != nil {
 		return errInvalid("id must be a valid session id")
 	}
 

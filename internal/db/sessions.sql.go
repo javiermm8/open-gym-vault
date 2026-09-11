@@ -21,8 +21,8 @@ RETURNING id, session_id, exercise_id, activity_type, reps, weight, sort_order, 
 `
 
 type CreateActivityParams struct {
-	SessionID       pgtype.UUID        `json:"session_id"`
-	ExerciseID      pgtype.UUID        `json:"exercise_id"`
+	SessionID       string             `json:"session_id"`
+	ExerciseID      pgtype.Text        `json:"exercise_id"`
 	ActivityType    string             `json:"activity_type"`
 	Reps            pgtype.Int4        `json:"reps"`
 	Weight          pgtype.Float4      `json:"weight"`
@@ -78,7 +78,7 @@ RETURNING id, user_id, session_type, start_time, end_time, total_time, total_wei
 `
 
 type CreateSessionParams struct {
-	UserID                 pgtype.UUID        `json:"user_id"`
+	UserID                 string             `json:"user_id"`
 	SessionType            string             `json:"session_type"`
 	StartTime              pgtype.Timestamptz `json:"start_time"`
 	EndTime                pgtype.Timestamptz `json:"end_time"`
@@ -126,7 +126,7 @@ const getSessionByID = `-- name: GetSessionByID :one
 SELECT id, user_id, session_type, start_time, end_time, total_time, total_weight, overall_perceived_effort, burned_cals, user_notes, created_at, last_updated_at, client_s FROM sessions WHERE id = $1
 `
 
-func (q *Queries) GetSessionByID(ctx context.Context, id pgtype.UUID) (Session, error) {
+func (q *Queries) GetSessionByID(ctx context.Context, id string) (Session, error) {
 	row := q.db.QueryRow(ctx, getSessionByID, id)
 	var i Session
 	err := row.Scan(
@@ -151,7 +151,7 @@ const listActivitiesBySession = `-- name: ListActivitiesBySession :many
 SELECT id, session_id, exercise_id, activity_type, reps, weight, sort_order, start_time, end_time, total_time, perceived_effort, created_at, last_updated_at, client_s FROM activities WHERE session_id = $1 ORDER BY sort_order
 `
 
-func (q *Queries) ListActivitiesBySession(ctx context.Context, sessionID pgtype.UUID) ([]Activity, error) {
+func (q *Queries) ListActivitiesBySession(ctx context.Context, sessionID string) ([]Activity, error) {
 	rows, err := q.db.Query(ctx, listActivitiesBySession, sessionID)
 	if err != nil {
 		return nil, err
@@ -190,7 +190,7 @@ const listSessionsByUser = `-- name: ListSessionsByUser :many
 SELECT id, user_id, session_type, start_time, end_time, total_time, total_weight, overall_perceived_effort, burned_cals, user_notes, created_at, last_updated_at, client_s FROM sessions WHERE user_id = $1 ORDER BY start_time DESC
 `
 
-func (q *Queries) ListSessionsByUser(ctx context.Context, userID pgtype.UUID) ([]Session, error) {
+func (q *Queries) ListSessionsByUser(ctx context.Context, userID string) ([]Session, error) {
 	rows, err := q.db.Query(ctx, listSessionsByUser, userID)
 	if err != nil {
 		return nil, err

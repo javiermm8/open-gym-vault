@@ -18,7 +18,7 @@ RETURNING id, user_id, name, alternative_names, explanation, created_at, last_up
 `
 
 type CreateCustomExerciseParams struct {
-	UserID           pgtype.UUID `json:"user_id"`
+	UserID           pgtype.Text `json:"user_id"`
 	Name             string      `json:"name"`
 	AlternativeNames []string    `json:"alternative_names"`
 	Explanation      pgtype.Text `json:"explanation"`
@@ -85,7 +85,7 @@ const getExerciseByID = `-- name: GetExerciseByID :one
 SELECT id, user_id, name, alternative_names, explanation, created_at, last_updated_at, client_s FROM exercises WHERE id = $1
 `
 
-func (q *Queries) GetExerciseByID(ctx context.Context, id pgtype.UUID) (Exercise, error) {
+func (q *Queries) GetExerciseByID(ctx context.Context, id string) (Exercise, error) {
 	row := q.db.QueryRow(ctx, getExerciseByID, id)
 	var i Exercise
 	err := row.Scan(
@@ -108,7 +108,7 @@ ORDER BY name
 `
 
 // Global exercises plus this user's own custom ones.
-func (q *Queries) ListExercisesForUser(ctx context.Context, userID pgtype.UUID) ([]Exercise, error) {
+func (q *Queries) ListExercisesForUser(ctx context.Context, userID pgtype.Text) ([]Exercise, error) {
 	rows, err := q.db.Query(ctx, listExercisesForUser, userID)
 	if err != nil {
 		return nil, err

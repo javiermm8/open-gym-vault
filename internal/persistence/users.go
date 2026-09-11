@@ -8,8 +8,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/javiermm8/open-gym-vault/internal/auth"
 	"github.com/javiermm8/open-gym-vault/internal/db"
 )
@@ -74,19 +72,19 @@ func (s *Store) Login(ctx context.Context, username, password string) (rawToken 
 	return raw, expiresAt, user, nil
 }
 
-func (s *Store) ExtendTokenExpiry(ctx context.Context, rawToken string) (uuid.UUID, error) {
+func (s *Store) ExtendTokenExpiry(ctx context.Context, rawToken string) (string, error) {
 	hash := auth.HashToken(rawToken)
 
 	token, err := s.Queries.GetAuthTokenByHash(ctx, hash)
 	if err != nil {
-		return uuid.UUID{}, ErrTokenInvalidOrExpired
+		return "", ErrTokenInvalidOrExpired
 	}
 
 	if token.ExpiresAt.Time.Before(time.Now()) {
 		if err = s.Queries.DeleteAuthToken(ctx, auth.HashToken(hash)); err != nil {
 			log.Printf("deleting auth token: %w", err)
 		}
-		return uuid.UUID{}, ErrTokenInvalidOrExpired
+		return "", ErrTokenInvalidOrExpired
 	}
 
 	newExpiry := time.Now().Add(auth.TokenTTL)
@@ -94,10 +92,10 @@ func (s *Store) ExtendTokenExpiry(ctx context.Context, rawToken string) (uuid.UU
 		ID:        token.ID,
 		ExpiresAt: ToPgTimestamptz(newExpiry),
 	}); err != nil {
-		return uuid.UUID{}, fmt.Errorf("refreshing auth token: %w", err)
+		return "", fmt.Errorf("refreshing auth token: %w", err)
 	}
 
-	return FromPgUUID(token.UserID)
+	return token.UserID, nil
 }
 
 func (s *Store) Logout(ctx context.Context, rawToken string) error {
@@ -138,13 +136,7 @@ func (s *Store) CreateUser(ctx context.Context, in NewUser) (db.User, error) {
 	return user, nil
 }
 
-func (s *Store) QueryUser(ctx context.Context, id string) (db.User, error) {
-	userUUID, err := uuid.Parse(id)
-	if err != nil {
-		return db.User{}, fmt.Errorf("Quering user: Parse uuid: %w", err)
-	}
-	userID := ToPgUUID(userUUID)
-
+func (s *Store) QueryUser(ctx context.Context, userID string) (db.User, error) {
 	user, err := s.Queries.GetUserByID(ctx, userID)
 	if err != nil {
 		return db.User{}, fmt.Errorf("Quering user: %w", err)
@@ -164,17 +156,16 @@ func (s *Store) QueryUser(ctx context.Context, id string) (db.User, error) {
 // with the CASCADE path from users -> exercises if Postgres processes it
 // before the users -> sessions -> activities cascade has cleared the
 // references — so we control the order explicitly instead.
-func (s *Store) DeleteUserCascade(ctx context.Context, userID uuid.UUID) error {
-	pgID := ToPgUUID(userID)
+func (s *Store) DeleteUserCascade(ctx context.Context, userID string) error {
 
 	return s.WithTx(ctx, func(q *db.Queries) error {
-		if err := q.DeleteActivitiesByUser(ctx, pgID); err != nil {
+		if err := q.DeleteActivitiesByUser(ctx, userID); err != nil {
 			return fmt.Errorf("deleting user's activities: %w", err)
 		}
-		if err := q.DeleteExercisesByUser(ctx, pgID); err != nil {
+		if err := q.DeleteExercisesByUser(ctx, ToPgText(userID)); err != nil {
 			return fmt.Errorf("deleting user's custom exercises: %w", err)
 		}
-		if err := q.DeleteUser(ctx, pgID); err != nil {
+		if err := q.DeleteUser(ctx, userID); err != nil {
 			return fmt.Errorf("deleting user: %w", err)
 		}
 		return nil

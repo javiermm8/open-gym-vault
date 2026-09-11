@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"unicode/utf8"
 
-	"github.com/google/uuid"
 	"github.com/javiermm8/open-gym-vault/internal/persistence"
 )
 
@@ -35,14 +34,9 @@ func (s *Server) CreateExercise(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := toExerciseFullResponse(exercise)
-	if err != nil {
-		log.Printf("CreateExercise: building response: %v", err)
-		writeErrorMessage(w, http.StatusInternalServerError, "internal server error")
-		return
-	}
-	writeJSON(w, http.StatusCreated, resp)
+	resp := toExerciseFullResponse(exercise)
 
+	writeJSON(w, http.StatusCreated, resp)
 }
 
 func validateCreateExerciseRequest(req CreateExerciseRequest) error {
@@ -68,29 +62,16 @@ func (s *Server) GetExercise(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if exercise.UserID.String() != "" {
-		userID, err := persistence.FromPgUUID(exercise.UserID)
-		if err != nil {
-			log.Printf("GetExercise: FromPgUUID: %v", err)
-			writeError(w, err)
-			return
-		}
-
-		if AuthenticateUserID(r) != userID {
+	if persistence.FromPgText(exercise.UserID) != "" {
+		if AuthenticateUserID(r) != persistence.FromPgText(exercise.UserID) {
 			writeErrorMessage(w, http.StatusUnauthorized, "Unauthorized")
 			return
 		}
 	}
 
-	resp, err := toExerciseFullResponse(exercise)
-	if err != nil {
-		log.Printf("GetExercise: building response: %v", err)
-		writeErrorMessage(w, http.StatusInternalServerError, "internal server error")
-		return
-	}
+	resp := toExerciseFullResponse(exercise)
 
 	writeJSON(w, http.StatusOK, resp)
-
 }
 
 func validateGetExerciseRequest(id string) error {
@@ -98,9 +79,6 @@ func validateGetExerciseRequest(id string) error {
 		return errRequired("id")
 	}
 	if utf8.RuneCountInString(id) != 36 {
-		return errInvalid("id must be a valid exercise id")
-	}
-	if err := uuid.Validate(id); err != nil {
 		return errInvalid("id must be a valid exercise id")
 	}
 
@@ -118,13 +96,8 @@ func (s Server) ListExercises(w http.ResponseWriter, r *http.Request) {
 	full := r.URL.Query().Get("full")
 	if full == "true" {
 		var exerciseResponses []exerciseFullResponse
-		for i, n := range exercises {
-			resp, err := toExerciseFullResponse(n)
-			if err != nil {
-				log.Printf("ListExercises: Exercise: %d Building response: %v", i, err)
-				writeErrorMessage(w, http.StatusInternalServerError, "internal server error")
-				return
-			}
+		for _, n := range exercises {
+			resp := toExerciseFullResponse(n)
 
 			exerciseResponses = append(exerciseResponses, resp)
 		}
@@ -132,13 +105,8 @@ func (s Server) ListExercises(w http.ResponseWriter, r *http.Request) {
 
 	} else if full == "false" || full == "" {
 		var exerciseResponses []exerciseShortResponse
-		for i, n := range exercises {
-			resp, err := toExerciseShortResponse(n)
-			if err != nil {
-				log.Printf("ListExercises: Exercise: %d Building response(short): %v", i, err)
-				writeErrorMessage(w, http.StatusInternalServerError, "internal server error")
-				return
-			}
+		for _, n := range exercises {
+			resp := toExerciseShortResponse(n)
 
 			exerciseResponses = append(exerciseResponses, resp)
 		}

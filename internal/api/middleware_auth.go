@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/javiermm8/open-gym-vault/internal/persistence"
 )
 
@@ -70,8 +69,8 @@ func (s *Server) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func AuthenticateUserID(r *http.Request) uuid.UUID {
-	id, ok := r.Context().Value("userID").(uuid.UUID)
+func AuthenticateUserID(r *http.Request) string {
+	id, ok := r.Context().Value("userID").(string)
 	if !ok {
 		panic("AuthenticateUserID called on a request not wrapped with RequireAuth")
 	}

@@ -22,23 +22,23 @@ type Querier interface {
 	// is ON DELETE RESTRICT (to protect shared/global exercises from accidental
 	// deletion) — that RESTRICT can otherwise conflict with the CASCADE from
 	// users -> exercises during a single `DELETE FROM users`.
-	DeleteActivitiesByUser(ctx context.Context, userID pgtype.UUID) error
+	DeleteActivitiesByUser(ctx context.Context, userID string) error
 	DeleteAuthToken(ctx context.Context, tokenHash string) error
 	// Deletes the user's own custom exercises. Must run after
 	// DeleteActivitiesByUser so no activity still references them.
-	DeleteExercisesByUser(ctx context.Context, userID pgtype.UUID) error
+	DeleteExercisesByUser(ctx context.Context, userID pgtype.Text) error
 	DeleteExpiredAuthTokens(ctx context.Context) error
-	DeleteUser(ctx context.Context, id pgtype.UUID) error
+	DeleteUser(ctx context.Context, id string) error
 	GetAuthTokenByHash(ctx context.Context, tokenHash string) (AuthToken, error)
-	GetExerciseByID(ctx context.Context, id pgtype.UUID) (Exercise, error)
-	GetSessionByID(ctx context.Context, id pgtype.UUID) (Session, error)
-	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
+	GetExerciseByID(ctx context.Context, id string) (Exercise, error)
+	GetSessionByID(ctx context.Context, id string) (Session, error)
+	GetUserByID(ctx context.Context, id string) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
-	ListActivitiesBySession(ctx context.Context, sessionID pgtype.UUID) ([]Activity, error)
+	ListActivitiesBySession(ctx context.Context, sessionID string) ([]Activity, error)
 	// Global exercises plus this user's own custom ones.
-	ListExercisesForUser(ctx context.Context, userID pgtype.UUID) ([]Exercise, error)
+	ListExercisesForUser(ctx context.Context, userID pgtype.Text) ([]Exercise, error)
 	ListGlobalExercises(ctx context.Context) ([]Exercise, error)
-	ListSessionsByUser(ctx context.Context, userID pgtype.UUID) ([]Session, error)
+	ListSessionsByUser(ctx context.Context, userID string) ([]Session, error)
 	RefreshAuthTokenExpiry(ctx context.Context, arg RefreshAuthTokenExpiryParams) error
 }
 
