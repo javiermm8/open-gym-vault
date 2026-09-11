@@ -13,8 +13,6 @@ import (
 
 // REQUESTS
 type createSessionRequest struct {
-	// TODO: Add 'token'(or replace UserID and derive from token) for auth.
-	UserID                 string                  `json:"user_id"`
 	SessionType            string                  `json:"session_type"`
 	StartTime              time.Time               `json:"start_time"`
 	EndTime                time.Time               `json:"end_time"`
@@ -65,13 +63,8 @@ type loginRequest struct {
 	Password string `json:"password"`
 }
 
-// Turns request into something the internal/persistence layer can work with(parse uuids, etc)
-func (req createSessionRequest) toNewSession() (persistence.NewSession, error) {
-	userID, err := uuid.Parse(req.UserID)
-	if err != nil {
-		return persistence.NewSession{}, fmt.Errorf("invalid user_id: %w", err)
-	}
-
+// Turns request into something the internal/persistence layer can work with. Needs the req + a userID(that should come from the token)
+func (req createSessionRequest) toNewSession(userID uuid.UUID) (persistence.NewSession, error) {
 	activities := make([]persistence.NewActivity, len(req.Activities))
 	for i, a := range req.Activities {
 		na, err := a.toNewActivity()

@@ -24,7 +24,7 @@ func (s *Server) CreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newSession, err := req.toNewSession()
+	newSession, err := req.toNewSession(AuthenticateUserID(r))
 	if err != nil {
 		writeErrorMessage(w, http.StatusBadRequest, err.Error())
 		return
@@ -48,9 +48,6 @@ func (s *Server) CreateSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func validateCreateSessionRequest(req createSessionRequest) error {
-	if req.UserID == "" {
-		return errRequired("user_id")
-	}
 	if req.SessionType == "" {
 		return errRequired("session_type")
 	}
