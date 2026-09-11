@@ -11,7 +11,7 @@ import (
 )
 
 type NewExercise struct {
-	UserID           *uuid.UUID
+	UserID           uuid.UUID
 	Name             string
 	AlternativeNames *[]string
 	Explanation      *string
@@ -36,7 +36,7 @@ func (s *Store) CreateExercise(ctx context.Context, in NewExercise) (db.Exercise
 	err := s.WithTx(ctx, func(q *db.Queries) error {
 		var err error
 		exercise, err = q.CreateCustomExercise(ctx, db.CreateCustomExerciseParams{
-			UserID:           ToPgUUIDPtr(in.UserID),
+			UserID:           ToPgUUID(in.UserID),
 			Name:             in.Name,
 			AlternativeNames: altNames,
 			Explanation:      ToPgTextPtr(in.Explanation),
@@ -67,4 +67,14 @@ func (s *Store) QueryExecise(ctx context.Context, id string) (db.Exercise, error
 	}
 
 	return exercise, nil
+}
+
+func (s *Store) QueryExercises(ctx context.Context, userID uuid.UUID) ([]db.Exercise, error) {
+	exercises, err := s.Queries.ListExercisesForUser(ctx, ToPgUUID(userID))
+	if err != nil {
+		return []db.Exercise{}, fmt.Errorf("Quering exercises: %w", err)
+
+	}
+
+	return exercises, nil
 }

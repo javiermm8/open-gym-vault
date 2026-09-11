@@ -22,7 +22,7 @@ func (s *Server) CreateExercise(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newExercise, err := req.toNewExercise()
+	newExercise, err := req.toNewExercise(AuthenticateUserID(r))
 	if err != nil {
 		writeErrorMessage(w, http.StatusBadRequest, err.Error())
 		return
@@ -35,7 +35,7 @@ func (s *Server) CreateExercise(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := toExerciseResponse(exercise)
+	resp, err := toExerciseFullResponse(exercise)
 	if err != nil {
 		log.Printf("CreateExercise: building response: %v", err)
 		writeErrorMessage(w, http.StatusInternalServerError, "internal server error")
@@ -82,7 +82,7 @@ func (s *Server) GetExercise(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	resp, err := toExerciseResponse(exercise)
+	resp, err := toExerciseFullResponse(exercise)
 	if err != nil {
 		log.Printf("GetExercise: building response: %v", err)
 		writeErrorMessage(w, http.StatusInternalServerError, "internal server error")
@@ -105,4 +105,46 @@ func validateGetExerciseRequest(id string) error {
 	}
 
 	return nil
+}
+
+func (s Server) ListExercises(w http.ResponseWriter, r *http.Request) {
+	exercises, err := s.store.QueryExercises(r.Context(), AuthenticateUserID(r))
+	if err != nil {
+		log.Printf("ListExercises: %v", err)
+		writeError(w, err)
+		return
+	}
+
+	full := r.URL.Query().Get("full")
+	if full == "true" {
+		var exerciseResponses []exerciseFullResponse
+		for i, n := range exercises {
+			resp, err := toExerciseFullResponse(n)
+			if err != nil {
+				log.Printf("ListExercises: Exercise: %d Building response: %v", i, err)
+				writeErrorMessage(w, http.StatusInternalServerError, "internal server error")
+				return
+			}
+
+			exerciseResponses = append(exerciseResponses, resp)
+		}
+		writeJSON(w, http.StatusOK, exerciseResponses)
+
+	} else if full == "false" || full == "" {
+		var exerciseResponses []exerciseShortResponse
+		for i, n := range exercises {
+			resp, err := toExerciseShortResponse(n)
+			if err != nil {
+				log.Printf("ListExercises: Exercise: %d Building response(short): %v", i, err)
+				writeErrorMessage(w, http.StatusInternalServerError, "internal server error")
+				return
+			}
+
+			exerciseResponses = append(exerciseResponses, resp)
+		}
+		writeJSON(w, http.StatusOK, exerciseResponses)
+	} else {
+		writeErrorMessage(w, http.StatusBadRequest, "Available flags: full=true/false")
+		return
+	}
 }

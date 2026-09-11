@@ -45,7 +45,6 @@ type CreateUserRequest struct {
 }
 
 type CreateExerciseRequest struct {
-	UserID           *string          `json:"user_id,omitempty"`
 	Name             string           `json:"name"`
 	AlternativeNames *[]string        `json:"alternative_names,omitempty"`
 	Explanation      *string          `json:"explanation,omitempty"`
@@ -123,16 +122,7 @@ func (req CreateUserRequest) toNewUser() (persistence.NewUser, error) {
 	}, nil
 }
 
-func (req CreateExerciseRequest) toNewExercise() (persistence.NewExercise, error) {
-	var userID *uuid.UUID
-	if req.UserID != nil {
-		id, err := uuid.Parse(*req.UserID)
-		if err != nil {
-			return persistence.NewExercise{}, fmt.Errorf("invalid exercise_id: %w", err)
-		}
-		userID = &id
-	}
-
+func (req CreateExerciseRequest) toNewExercise(userID uuid.UUID) (persistence.NewExercise, error) {
 	return persistence.NewExercise{
 		UserID:           userID,
 		Name:             req.Name,
@@ -184,7 +174,7 @@ type userResponse struct {
 	ClientS     *json.RawMessage `json:"client_s,omitempty"`
 }
 
-type exerciseResponse struct {
+type exerciseFullResponse struct {
 	ID               string           `json:"id"`
 	UserID           *string          `json:"user_id,omitempty"`
 	Name             string           `json:"name"`
@@ -192,6 +182,11 @@ type exerciseResponse struct {
 	Explanation      *string          `json:"explanation,omitempty"`
 	ClientS          *json.RawMessage `json:"client_s,omitempty"`
 	CreatedAt        time.Time        `json:"created_at"`
+}
+
+type exerciseShortResponse struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 type authResponse struct {
@@ -282,24 +277,24 @@ func toUserResponse(user db.User) (userResponse, error) {
 	}, err
 }
 
-func toExerciseResponse(exercise db.Exercise) (exerciseResponse, error) {
+func toExerciseFullResponse(exercise db.Exercise) (exerciseFullResponse, error) {
 	exerciseID, err := persistence.FromPgUUID(exercise.ID)
 	if err != nil {
-		return exerciseResponse{}, fmt.Errorf("exercise id: %w", err)
+		return exerciseFullResponse{}, fmt.Errorf("exercise id: %w", err)
 	}
 
 	var userID string
 	if exercise.UserID.String() != "" {
 		userUUID, err := persistence.FromPgUUID(exercise.UserID)
 		if err != nil {
-			return exerciseResponse{}, fmt.Errorf("user id(in toExerciseResponse): %w", err)
+			return exerciseFullResponse{}, fmt.Errorf("user id(in toExerciseResponse): %w", err)
 		}
 		userID = userUUID.String()
 	} else {
 		userID = ""
 	}
 
-	return exerciseResponse{
+	return exerciseFullResponse{
 		ID:               exerciseID.String(),
 		UserID:           &userID,
 		Name:             exercise.Name,
@@ -307,5 +302,17 @@ func toExerciseResponse(exercise db.Exercise) (exerciseResponse, error) {
 		Explanation:      persistence.FromPgTextPtr(exercise.Explanation),
 		ClientS:          (*json.RawMessage)(&exercise.ClientS),
 		CreatedAt:        persistence.FromPgTimestamptz(exercise.CreatedAt),
+	}, nil
+}
+
+func toExerciseShortResponse(exercise db.Exercise) (exerciseShortResponse, error) {
+	exerciseID, err := persistence.FromPgUUID(exercise.ID)
+	if err != nil {
+		return exerciseShortResponse{}, fmt.Errorf("exercise id: %w", err)
+	}
+
+	return exerciseShortResponse{
+		ID:   exerciseID.String(),
+		Name: exercise.Name,
 	}, nil
 }
