@@ -8,6 +8,7 @@ func (s *Server) routes() http.Handler {
 
 	// TODOs:
 	// - update profile
+	// - Auth change password
 	// - Rate limits
 	// - Stats
 	// - Session templates
@@ -19,10 +20,12 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /auth/login", s.Login)
 	mux.HandleFunc("POST /auth/logout", s.Logout)
 
-	// POSTs
+	// POSTs new(user is /auth/register)
 	mux.HandleFunc("POST /new_session", s.RequireAuth(s.CreateSession))
-	// mux.HandleFunc("POST /new_user", s.CreateUser) // New user is now register, add update profile instead
 	mux.HandleFunc("POST /new_exercise", s.RequireAuth(s.CreateExercise))
+
+	// POSTs update
+	mux.HandleFunc("POST /update_user", s.RequireAuth(s.UpdateUser))
 
 	// GETs by ID
 	mux.HandleFunc("GET /session/{id}", s.RequireAuth(s.GetSession))

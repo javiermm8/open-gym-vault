@@ -135,3 +135,48 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 	)
 	return i, err
 }
+
+const updateUserByID = `-- name: UpdateUserByID :one
+UPDATE users
+SET (username, display_name, bio, sex, birthday, last_updated_at, client_s) = ($2, $3, $4, $5, $6, $7, $8)
+WHERE id = $1
+RETURNING id, username, display_name, password_hash, bio, sex, birthday, created_at, last_updated_at, client_s
+`
+
+type UpdateUserByIDParams struct {
+	ID            string             `json:"id"`
+	Username      string             `json:"username"`
+	DisplayName   string             `json:"display_name"`
+	Bio           pgtype.Text        `json:"bio"`
+	Sex           pgtype.Text        `json:"sex"`
+	Birthday      pgtype.Date        `json:"birthday"`
+	LastUpdatedAt pgtype.Timestamptz `json:"last_updated_at"`
+	ClientS       []byte             `json:"client_s"`
+}
+
+func (q *Queries) UpdateUserByID(ctx context.Context, arg UpdateUserByIDParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserByID,
+		arg.ID,
+		arg.Username,
+		arg.DisplayName,
+		arg.Bio,
+		arg.Sex,
+		arg.Birthday,
+		arg.LastUpdatedAt,
+		arg.ClientS,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.DisplayName,
+		&i.PasswordHash,
+		&i.Bio,
+		&i.Sex,
+		&i.Birthday,
+		&i.CreatedAt,
+		&i.LastUpdatedAt,
+		&i.ClientS,
+	)
+	return i, err
+}

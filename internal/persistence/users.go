@@ -24,6 +24,15 @@ type NewUser struct {
 	ClientS       *json.RawMessage
 }
 
+type UpdatedUser struct {
+	Username    string
+	DisplayName string
+	Bio         *string
+	Sex         *string
+	Birthday    time.Time
+	ClientS     *json.RawMessage
+}
+
 var ErrInvalidCredentials = errors.New("invalid username or password")
 var ErrTokenInvalidOrExpired = errors.New("token invalid or expired")
 
@@ -102,44 +111,67 @@ func (s *Store) Logout(ctx context.Context, rawToken string) error {
 	return s.Queries.DeleteAuthToken(ctx, auth.HashToken(rawToken))
 }
 
-func (s *Store) CreateUser(ctx context.Context, in NewUser) (db.User, error) {
-	var user db.User
+// func (s *Store) CreateUser(ctx context.Context, in NewUser) (db.User, error) {
+// 	var user db.User
 
-	var clientStuff json.RawMessage
-	if in.ClientS != nil {
-		clientStuff = *in.ClientS
-	}
+// 	var clientStuff json.RawMessage
+// 	if in.ClientS != nil {
+// 		clientStuff = *in.ClientS
+// 	}
 
-	err := s.WithTx(ctx, func(q *db.Queries) error {
-		var err error
-		user, err = q.CreateUser(ctx, db.CreateUserParams{
-			Username:      in.Username,
-			DisplayName:   in.DisplayName,
-			PasswordHash:  in.PasswordHash,
-			Bio:           ToPgTextPtr(in.Bio),
-			Sex:           ToPgTextPtr(in.Sex),
-			Birthday:      ToPgDate(in.Birthday),
-			CreatedAt:     ToPgTimestamptz(time.Now()),
-			LastUpdatedAt: ToPgTimestamptz(time.Time{}),
-			ClientS:       clientStuff,
-		})
-		if err != nil {
-			return fmt.Errorf("creating user: %w", err)
-		}
+// 	err := s.WithTx(ctx, func(q *db.Queries) error {
+// 		var err error
+// 		user, err = q.CreateUser(ctx, db.CreateUserParams{
+// 			Username:      in.Username,
+// 			DisplayName:   in.DisplayName,
+// 			PasswordHash:  in.PasswordHash,
+// 			Bio:           ToPgTextPtr(in.Bio),
+// 			Sex:           ToPgTextPtr(in.Sex),
+// 			Birthday:      ToPgDate(in.Birthday),
+// 			CreatedAt:     ToPgTimestamptz(time.Now()),
+// 			LastUpdatedAt: ToPgTimestamptz(time.Time{}),
+// 			ClientS:       clientStuff,
+// 		})
+// 		if err != nil {
+// 			return fmt.Errorf("creating user: %w", err)
+// 		}
 
-		return nil
-	})
-	if err != nil {
-		return db.User{}, err
-	}
+// 		return nil
+// 	})
+// 	if err != nil {
+// 		return db.User{}, err
+// 	}
 
-	return user, nil
-}
+// 	return user, nil
+// }
 
 func (s *Store) QueryUser(ctx context.Context, userID string) (db.User, error) {
 	user, err := s.Queries.GetUserByID(ctx, userID)
 	if err != nil {
 		return db.User{}, fmt.Errorf("Quering user: %w", err)
+	}
+
+	return user, nil
+}
+
+func (s *Store) UpdateUser(ctx context.Context, userID string, u UpdatedUser) (db.User, error) {
+	var clientStuff json.RawMessage
+	if u.ClientS != nil {
+		clientStuff = *u.ClientS
+	}
+
+	user, err := s.Queries.UpdateUserByID(ctx, db.UpdateUserByIDParams{
+		ID:            userID,
+		Username:      u.Username,
+		DisplayName:   u.DisplayName,
+		Bio:           ToPgTextPtr(u.Bio),
+		Sex:           ToPgTextPtr(u.Sex),
+		Birthday:      ToPgDate(u.Birthday),
+		LastUpdatedAt: ToPgTimestamptz(time.Now()),
+		ClientS:       clientStuff,
+	})
+	if err != nil {
+		return db.User{}, fmt.Errorf("Updating user: %w", err)
 	}
 
 	return user, nil

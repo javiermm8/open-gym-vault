@@ -40,6 +40,7 @@ type Querier interface {
 	ListGlobalExercises(ctx context.Context) ([]Exercise, error)
 	ListSessionsByUser(ctx context.Context, userID string) ([]Session, error)
 	RefreshAuthTokenExpiry(ctx context.Context, arg RefreshAuthTokenExpiryParams) error
+	UpdateUserByID(ctx context.Context, arg UpdateUserByIDParams) (User, error)
 }
 
 var _ Querier = (*Queries)(nil)

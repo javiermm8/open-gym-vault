@@ -31,14 +31,13 @@ type createActivityRequest struct {
 	ClientS         *json.RawMessage `json:"client_s,omitempty"`
 }
 
-type CreateUserRequest struct {
-	Username     string           `json:"username"`
-	DisplayName  string           `json:"display_name"`
-	PasswordHash string           `json:"password_hash"`
-	Bio          *string          `json:"bio,omitempty"`
-	Sex          *string          `json:"sex,omitempty"`
-	Birthday     time.Time        `json:"birthday"`
-	ClientS      *json.RawMessage `json:"client_s,omitempty"`
+type updateUserRequest struct {
+	Username    string           `json:"username"`
+	DisplayName string           `json:"display_name"`
+	Bio         *string          `json:"bio,omitempty"`
+	Sex         *string          `json:"sex,omitempty"`
+	Birthday    time.Time        `json:"birthday"`
+	ClientS     *json.RawMessage `json:"client_s,omitempty"`
 }
 
 type CreateExerciseRequest struct {
@@ -93,19 +92,19 @@ func (req createActivityRequest) toNewActivity() persistence.NewActivity {
 	}
 }
 
-func (req CreateUserRequest) toNewUser() (persistence.NewUser, error) {
-	return persistence.NewUser{
-		Username:      req.Username,
-		DisplayName:   req.DisplayName,
-		PasswordHash:  req.PasswordHash,
-		Bio:           req.Bio,
-		Sex:           req.Sex,
-		Birthday:      req.Birthday,
-		CreatedAt:     time.Now(),
-		LastUpdatedAt: time.Time{},
-		ClientS:       req.ClientS,
-	}, nil
-}
+// func (req CreateUserRequest) toNewUser() (persistence.NewUser, error) {
+// 	return persistence.NewUser{
+// 		Username:      req.Username,
+// 		DisplayName:   req.DisplayName,
+// 		PasswordHash:  req.PasswordHash,
+// 		Bio:           req.Bio,
+// 		Sex:           req.Sex,
+// 		Birthday:      req.Birthday,
+// 		CreatedAt:     time.Now(),
+// 		LastUpdatedAt: time.Time{},
+// 		ClientS:       req.ClientS,
+// 	}, nil
+// }
 
 func (req CreateExerciseRequest) toNewExercise(userID string) (persistence.NewExercise, error) {
 	return persistence.NewExercise{

@@ -25,3 +25,9 @@ SELECT * FROM users WHERE id = $1;
 
 -- name: GetUserByUsername :one
 SELECT * FROM users WHERE username = $1;
+
+-- name: UpdateUserByID :one
+UPDATE users
+SET (username, display_name, bio, sex, birthday, last_updated_at, client_s) = ($2, $3, $4, $5, $6, $7, $8)
+WHERE id = $1
+RETURNING *;

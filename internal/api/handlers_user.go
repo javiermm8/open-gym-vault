@@ -1,9 +1,12 @@
 package api
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"unicode/utf8"
+
+	"github.com/javiermm8/open-gym-vault/internal/persistence"
 )
 
 const maxUsernameLength = 10
@@ -69,6 +72,30 @@ const maxDisplayNameLength = 40
 
 // 	return nil
 // }
+
+func (s *Server) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	var req updateUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeErrorMessage(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+
+	user, err := s.store.UpdateUser(r.Context(), AuthenticateUserID(r), persistence.UpdatedUser{
+		Username:    req.Username,
+		DisplayName: req.DisplayName,
+		Bio:         req.Bio,
+		Sex:         req.Sex,
+		Birthday:    req.Birthday,
+		ClientS:     req.ClientS,
+	})
+	if err != nil {
+		log.Printf("Update User: %v", err)
+		writeError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, toUserResponse(user))
+}
 
 func (s *Server) GetUser(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
