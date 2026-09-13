@@ -73,7 +73,7 @@ paths:
       operationId: logoutUser
       summary: Revoke the current token
       responses:
-        "200":
+        "204":
           description: Logged out
         "400":
           $ref: "#/components/responses/BadRequest"
@@ -121,6 +121,12 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: A custom exercise with that name already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /exercises:
     get:
@@ -135,6 +141,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ListExercisesResponse"
+        "204":
+          description: No exercises to return
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -145,7 +153,6 @@ paths:
         required: true
         schema:
           type: string
-          format: uuid
     get:
       operationId: getExerciseById
       summary: Get a single exercise by ID
@@ -164,6 +171,8 @@ paths:
                 $ref: "#/components/schemas/Error"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "400":
+          $ref: "#/components/responses/BadRequest"
 
   /sessions:
     get:
@@ -178,6 +187,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ListSessionsResponse"
+        "204":
+          description: No exercises to return
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -188,7 +199,6 @@ paths:
         required: true
         schema:
           type: string
-          format: uuid
     get:
       operationId: getSessionById
       summary: Get a single session by ID, including its activities
@@ -207,6 +217,8 @@ paths:
                 $ref: "#/components/schemas/Error"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "400":
+          $ref: "#/components/responses/BadRequest"
 
   /users/me:
     get:
@@ -354,6 +366,8 @@ components:
           type: ["integer", "null"]
           minimum: 1
           maximum: 10
+        client_s:
+          type: ["object", "null"]
       required: [activity_type, start_time, end_time]
 
     CreateSessionRequest:
@@ -380,6 +394,8 @@ components:
           items:
             $ref: '#/components/schemas/CreateActivityRequest'
           maxItems: 500
+        client_s:
+          type: ["object", "null"]
       required: [session_type, start_time, end_time, activities]
 
     ActivityResponse:
@@ -407,6 +423,8 @@ components:
           type: integer
         perceived_effort:
           type: ["integer", "null"]
+        client_s:
+          type: ["object", "null"]
 
     SessionResponse:
       type: object
@@ -426,7 +444,7 @@ components:
         total_time_seconds:
           type: ["integer", "null"]
         total_weight:
-          type: ["number", "null"]
+          type: [integer, "null"]
         overall_perceived_effort:
           type: ["integer", "null"]
         burned_cals:
@@ -437,6 +455,8 @@ components:
           type: ["array", "null"]
           items:
             $ref: '#/components/schemas/ActivityResponse'
+        client_s:
+          type: ["object", "null"]
 
     CreateExerciseRequest:
       type: object
@@ -502,6 +522,7 @@ components:
           type: ["string", "null"]
         birthday:
           type: string
+          format: date
         client_s:
           type: ["object", "null"]
 
@@ -524,6 +545,6 @@ components:
           maxLength: 20
         birthday:
           type: string
-          format: date-time
+          format: date
         client_s:
           type: ["object", "null"]

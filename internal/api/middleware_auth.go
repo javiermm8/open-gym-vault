@@ -20,6 +20,7 @@ var publicOperations = map[string]bool{
 }
 
 type ctxKeyUserID struct{}
+type ctxKeyToken struct{}
 
 func extractToken(r *http.Request) (string, bool) {
 	if h := r.Header.Get("Authorization"); strings.HasPrefix(h, "Bearer ") {
@@ -58,11 +59,15 @@ func clearAuthCookie(w http.ResponseWriter) {
 }
 
 func (s *Server) Authenticate(f gen.StrictHandlerFunc, operationID string) gen.StrictHandlerFunc {
-	if publicOperations[operationID] {
-		return f
-	}
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error) {
 		token, ok := extractToken(r)
+		if ok {
+			ctx = context.WithValue(ctx, ctxKeyToken{}, token)
+		}
+		if publicOperations[operationID] {
+			return f(ctx, w, r, request)
+		}
+
 		if !ok {
 			writeErrorMessage(w, http.StatusUnauthorized, "authentication required")
 			return nil, nil
@@ -87,4 +92,9 @@ func AuthenticateUserID(ctx context.Context) string {
 		panic("AuthenticateUserID called on a request not wrapped with Authenticate")
 	}
 	return id
+}
+
+func TokenFromContext(ctx context.Context) (string, bool) {
+	token, ok := ctx.Value(ctxKeyToken{}).(string)
+	return token, ok
 }

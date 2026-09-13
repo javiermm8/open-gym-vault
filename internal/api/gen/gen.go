@@ -47,16 +47,17 @@ func (e CreateActivityRequestActivityType) Valid() bool {
 
 // ActivityResponse defines model for ActivityResponse.
 type ActivityResponse struct {
-	ActivityType     *string    `json:"activity_type,omitempty"`
-	EndTime          *time.Time `json:"end_time,omitempty"`
-	ExerciseId       *string    `json:"exercise_id,omitempty"`
-	Id               *string    `json:"id,omitempty"`
-	PerceivedEffort  *int       `json:"perceived_effort,omitempty"`
-	Reps             *int       `json:"reps,omitempty"`
-	SortOrder        *int       `json:"sort_order,omitempty"`
-	StartTime        *time.Time `json:"start_time,omitempty"`
-	TotalTimeSeconds *int       `json:"total_time_seconds,omitempty"`
-	Weight           *float32   `json:"weight,omitempty"`
+	ActivityType     *string                 `json:"activity_type,omitempty"`
+	ClientS          *map[string]interface{} `json:"client_s,omitempty"`
+	EndTime          *time.Time              `json:"end_time,omitempty"`
+	ExerciseId       *string                 `json:"exercise_id,omitempty"`
+	Id               *string                 `json:"id,omitempty"`
+	PerceivedEffort  *int                    `json:"perceived_effort,omitempty"`
+	Reps             *int                    `json:"reps,omitempty"`
+	SortOrder        *int                    `json:"sort_order,omitempty"`
+	StartTime        *time.Time              `json:"start_time,omitempty"`
+	TotalTimeSeconds *int                    `json:"total_time_seconds,omitempty"`
+	Weight           *float32                `json:"weight,omitempty"`
 }
 
 // AuthResponse defines model for AuthResponse.
@@ -70,6 +71,7 @@ type AuthResponse struct {
 // CreateActivityRequest defines model for CreateActivityRequest.
 type CreateActivityRequest struct {
 	ActivityType CreateActivityRequestActivityType `json:"activity_type"`
+	ClientS      *map[string]interface{}           `json:"client_s,omitempty"`
 	EndTime      time.Time                         `json:"end_time"`
 
 	// ExerciseId Only required when activity_type is exercise
@@ -96,6 +98,7 @@ type CreateExerciseRequest struct {
 type CreateSessionRequest struct {
 	Activities             []CreateActivityRequest `json:"activities"`
 	BurnedCals             *int                    `json:"burned_cals,omitempty"`
+	ClientS                *map[string]interface{} `json:"client_s,omitempty"`
 	EndTime                time.Time               `json:"end_time"`
 	OverallPerceivedEffort *int                    `json:"overall_perceived_effort,omitempty"`
 	SessionType            string                  `json:"session_type"`
@@ -147,17 +150,18 @@ type RegisterResponse struct {
 
 // SessionResponse defines model for SessionResponse.
 type SessionResponse struct {
-	Activities             *[]ActivityResponse `json:"activities,omitempty"`
-	BurnedCals             *int                `json:"burned_cals,omitempty"`
-	EndTime                *time.Time          `json:"end_time,omitempty"`
-	Id                     *string             `json:"id,omitempty"`
-	OverallPerceivedEffort *int                `json:"overall_perceived_effort,omitempty"`
-	SessionType            *string             `json:"session_type,omitempty"`
-	StartTime              *time.Time          `json:"start_time,omitempty"`
-	TotalTimeSeconds       *int                `json:"total_time_seconds,omitempty"`
-	TotalWeight            *float32            `json:"total_weight,omitempty"`
-	UserId                 *string             `json:"user_id,omitempty"`
-	UserNotes              *string             `json:"user_notes,omitempty"`
+	Activities             *[]ActivityResponse     `json:"activities,omitempty"`
+	BurnedCals             *int                    `json:"burned_cals,omitempty"`
+	ClientS                *map[string]interface{} `json:"client_s,omitempty"`
+	EndTime                *time.Time              `json:"end_time,omitempty"`
+	Id                     *string                 `json:"id,omitempty"`
+	OverallPerceivedEffort *int                    `json:"overall_perceived_effort,omitempty"`
+	SessionType            *string                 `json:"session_type,omitempty"`
+	StartTime              *time.Time              `json:"start_time,omitempty"`
+	TotalTimeSeconds       *int                    `json:"total_time_seconds,omitempty"`
+	TotalWeight            *int                    `json:"total_weight,omitempty"`
+	UserId                 *string                 `json:"user_id,omitempty"`
+	UserNotes              *string                 `json:"user_notes,omitempty"`
 }
 
 // UpdateUserRequest defines model for UpdateUserRequest.
@@ -174,7 +178,7 @@ type UpdateUserRequest struct {
 // UserResponse defines model for UserResponse.
 type UserResponse struct {
 	Bio         *string                 `json:"bio,omitempty"`
-	Birthday    *string                 `json:"birthday,omitempty"`
+	Birthday    *openapi_types.Date     `json:"birthday,omitempty"`
 	ClientS     *map[string]interface{} `json:"client_s,omitempty"`
 	DisplayName *string                 `json:"display_name,omitempty"`
 	Id          *string                 `json:"id,omitempty"`
@@ -234,7 +238,7 @@ type ServerInterface interface {
 	ListExercises(w http.ResponseWriter, r *http.Request, params ListExercisesParams)
 	// GetExerciseById Get a single exercise by ID
 	// (GET /exercises/{id})
-	GetExerciseById(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
+	GetExerciseById(w http.ResponseWriter, r *http.Request, id string)
 	// CreateExercise Create a custom exercise that can later be used in activities
 	// (POST /new_exercise)
 	CreateExercise(w http.ResponseWriter, r *http.Request)
@@ -246,7 +250,7 @@ type ServerInterface interface {
 	ListSessions(w http.ResponseWriter, r *http.Request, params ListSessionsParams)
 	// GetSessionById Get a single session by ID, including its activities
 	// (GET /sessions/{id})
-	GetSessionById(w http.ResponseWriter, r *http.Request, id openapi_types.UUID)
+	GetSessionById(w http.ResponseWriter, r *http.Request, id string)
 	// GetCurrentUser Get the current authenticated user's profile
 	// (GET /users/me)
 	GetCurrentUser(w http.ResponseWriter, r *http.Request)
@@ -346,9 +350,9 @@ func (siw *ServerInterfaceWrapper) GetExerciseById(w http.ResponseWriter, r *htt
 	_ = err
 
 	// ------------- Path parameter "id" -------------
-	var id openapi_types.UUID
+	var id string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
 		return
@@ -433,9 +437,9 @@ func (siw *ServerInterfaceWrapper) GetSessionById(w http.ResponseWriter, r *http
 	_ = err
 
 	// ------------- Path parameter "id" -------------
-	var id openapi_types.UUID
+	var id string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
 		return
@@ -676,11 +680,11 @@ type LogoutUserResponseObject interface {
 	VisitLogoutUserResponse(w http.ResponseWriter) error
 }
 
-type LogoutUser200Response struct {
+type LogoutUser204Response struct {
 }
 
-func (response LogoutUser200Response) VisitLogoutUserResponse(w http.ResponseWriter) error {
-	w.WriteHeader(200)
+func (response LogoutUser204Response) VisitLogoutUserResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
 	return nil
 }
 
@@ -770,6 +774,14 @@ func (response ListExercises200JSONResponse) VisitListExercisesResponse(w http.R
 	return err
 }
 
+type ListExercises204Response struct {
+}
+
+func (response ListExercises204Response) VisitListExercisesResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
 type ListExercises401JSONResponse struct{ UnauthorizedJSONResponse }
 
 func (response ListExercises401JSONResponse) VisitListExercisesResponse(w http.ResponseWriter) error {
@@ -785,7 +797,7 @@ func (response ListExercises401JSONResponse) VisitListExercisesResponse(w http.R
 }
 
 type GetExerciseByIdRequestObject struct {
-	Id openapi_types.UUID `json:"id"`
+	Id string `json:"id"`
 }
 
 type GetExerciseByIdResponseObject interface {
@@ -802,6 +814,20 @@ func (response GetExerciseById200JSONResponse) VisitGetExerciseByIdResponse(w ht
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetExerciseById400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetExerciseById400JSONResponse) VisitGetExerciseByIdResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -884,6 +910,20 @@ func (response CreateExercise401JSONResponse) VisitCreateExerciseResponse(w http
 	return err
 }
 
+type CreateExercise409JSONResponse Error
+
+func (response CreateExercise409JSONResponse) VisitCreateExerciseResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type CreateSessionRequestObject struct {
 	Body *CreateSessionJSONRequestBody
 }
@@ -956,6 +996,14 @@ func (response ListSessions200JSONResponse) VisitListSessionsResponse(w http.Res
 	return err
 }
 
+type ListSessions204Response struct {
+}
+
+func (response ListSessions204Response) VisitListSessionsResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
 type ListSessions401JSONResponse struct{ UnauthorizedJSONResponse }
 
 func (response ListSessions401JSONResponse) VisitListSessionsResponse(w http.ResponseWriter) error {
@@ -971,7 +1019,7 @@ func (response ListSessions401JSONResponse) VisitListSessionsResponse(w http.Res
 }
 
 type GetSessionByIdRequestObject struct {
-	Id openapi_types.UUID `json:"id"`
+	Id string `json:"id"`
 }
 
 type GetSessionByIdResponseObject interface {
@@ -988,6 +1036,20 @@ func (response GetSessionById200JSONResponse) VisitGetSessionByIdResponse(w http
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSessionById400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetSessionById400JSONResponse) VisitGetSessionByIdResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -1294,7 +1356,7 @@ func (sh *strictHandler) ListExercises(w http.ResponseWriter, r *http.Request, p
 }
 
 // GetExerciseById operation middleware
-func (sh *strictHandler) GetExerciseById(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+func (sh *strictHandler) GetExerciseById(w http.ResponseWriter, r *http.Request, id string) {
 	var request GetExerciseByIdRequestObject
 
 	request.Id = id
@@ -1408,7 +1470,7 @@ func (sh *strictHandler) ListSessions(w http.ResponseWriter, r *http.Request, pa
 }
 
 // GetSessionById operation middleware
-func (sh *strictHandler) GetSessionById(w http.ResponseWriter, r *http.Request, id openapi_types.UUID) {
+func (sh *strictHandler) GetSessionById(w http.ResponseWriter, r *http.Request, id string) {
 	var request GetSessionByIdRequestObject
 
 	request.Id = id
@@ -1493,38 +1555,38 @@ func (sh *strictHandler) UpdateCurrentUser(w http.ResponseWriter, r *http.Reques
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"EGlQm1KoqeJ4hic4n+f/GwA=",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

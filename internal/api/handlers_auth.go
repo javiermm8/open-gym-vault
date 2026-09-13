@@ -32,7 +32,7 @@ func (s *Server) RegisterUser(ctx context.Context, r gen.RegisterUserRequestObje
 
 	return gen.RegisterUser201JSONResponse{
 		Id:          &user.ID,
-		Username:    &user.ID,
+		Username:    &user.Username,
 		DisplayName: &user.DisplayName,
 	}, nil
 }
@@ -65,5 +65,20 @@ func (s *Server) LoginUser(ctx context.Context, r gen.LoginUserRequestObject) (g
 		token:     rawToken,
 		expiresAt: expiresAt,
 	}, nil
+}
 
+func (s *Server) LogoutUser(ctx context.Context, r gen.LogoutUserRequestObject) (gen.LogoutUserResponseObject, error) {
+	token, ok := TokenFromContext(ctx)
+	if !ok {
+		return gen.LogoutUser400JSONResponse{
+			BadRequestJSONResponse: gen.BadRequestJSONResponse{
+				Error: "no token provided",
+			},
+		}, nil
+	}
+	if err := s.store.Logout(ctx, token); err != nil &&
+		!errors.Is(err, persistence.ErrTokenInvalidOrExpired) {
+		return nil, err
+	}
+	return logoutResponse{}, nil
 }

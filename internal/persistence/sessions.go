@@ -107,7 +107,7 @@ func computeTotalWeight(activities []NewActivity) int32 {
 	return int32(total)
 }
 
-func (s *Store) GetSession(ctx context.Context, sessionID string) (db.Session, []db.Activity, error) {
+func (s *Store) QuerySession(ctx context.Context, sessionID string) (db.Session, []db.Activity, error) {
 	session, err := s.Queries.GetSessionByID(ctx, sessionID)
 	if err != nil {
 		return db.Session{}, nil, fmt.Errorf("Quering session: %w", err)

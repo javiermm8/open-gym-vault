@@ -15,9 +15,18 @@ type loginResponse struct {
 	expiresAt time.Time
 }
 
+type logoutResponse struct {
+	gen.LogoutUser204Response
+}
+
 func (resp loginResponse) VisitLoginUserResponse(w http.ResponseWriter) error {
 	setAuthCookie(w, resp.token, resp.expiresAt)
 	return resp.LoginUser200JSONResponse.VisitLoginUserResponse(w)
+}
+
+func (resp logoutResponse) VisitLogoutUserResponse(w http.ResponseWriter) error {
+	clearAuthCookie(w)
+	return resp.LogoutUser204Response.VisitLogoutUserResponse(w)
 }
 
 // writeJSON encodes v as JSON with the given status code
