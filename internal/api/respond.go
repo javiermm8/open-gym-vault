@@ -4,9 +4,23 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
+
+	"github.com/javiermm8/open-gym-vault/internal/api/gen"
 )
 
-// Encodes v as JSON with the given status code
+type loginResponse struct {
+	gen.LoginUser200JSONResponse
+	token     string
+	expiresAt time.Time
+}
+
+func (resp loginResponse) VisitLoginUserResponse(w http.ResponseWriter) error {
+	setAuthCookie(w, resp.token, resp.expiresAt)
+	return resp.LoginUser200JSONResponse.VisitLoginUserResponse(w)
+}
+
+// writeJSON encodes v as JSON with the given status code
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)

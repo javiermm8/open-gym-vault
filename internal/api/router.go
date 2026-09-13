@@ -1,40 +1,22 @@
 package api
 
-import "net/http"
+import (
+	"net/http"
 
-// Routes table(using http.NewServeMux()) (gonna be my todos now)
+	"github.com/javiermm8/open-gym-vault/internal/api/gen"
+)
+
 func (s *Server) routes() http.Handler {
-	mux := http.NewServeMux()
-
-	// TODOs:
-	// - update profile
-	// - Auth change password
-	// - Rate limits
-	// - Stats
-	// - Session templates
-	// - Docs/openapi
-	// - Better log error mgsgs
-
-	// AUTH
-	mux.HandleFunc("POST /auth/register", s.Register)
-	mux.HandleFunc("POST /auth/login", s.Login)
-	mux.HandleFunc("POST /auth/logout", s.Logout)
-
-	// POSTs new(user is /auth/register)
-	mux.HandleFunc("POST /new_session", s.RequireAuth(s.CreateSession))
-	mux.HandleFunc("POST /new_exercise", s.RequireAuth(s.CreateExercise))
-
-	// POSTs update
-	mux.HandleFunc("POST /update_user", s.RequireAuth(s.UpdateUser))
-
-	// GETs by ID
-	mux.HandleFunc("GET /session/{id}", s.RequireAuth(s.GetSession))
-	mux.HandleFunc("GET /user/{id}", s.RequireAuth(s.GetUser))
-	mux.HandleFunc("GET /exercise/{id}", s.RequireAuth(s.GetExercise))
-
-	// GETs lists
-	mux.HandleFunc("GET /exercises", s.RequireAuth(s.ListExercises))
-	mux.HandleFunc("GET /sessions", s.RequireAuth(s.ListSessions))
-
-	return withMiddleware(mux)
+	strict := gen.NewStrictHandlerWithOptions(s,
+		[]gen.StrictMiddlewareFunc{s.Authenticate},
+		gen.StrictHTTPServerOptions{
+			RequestErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
+				writeErrorMessage(w, http.StatusBadRequest, err.Error())
+			},
+			ResponseErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
+				writeErrorMessage(w, http.StatusInternalServerError, "internal server error")
+			},
+		},
+	)
+	return withMiddleware(gen.Handler(strict))
 }

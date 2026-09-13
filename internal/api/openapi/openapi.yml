@@ -1,0 +1,529 @@
+openapi: 3.2.0
+info:
+  title: OpenGymVault API
+  description: Gym tracker backend with ai agent integration.
+  version: 0.1.0
+  license:
+    name: GNU Affero General Public License version 3
+    identifier: AGPL-3.0-only
+servers:
+  - url: /
+
+security:
+  - bearerAuth: []
+  - cookieAuth: []
+
+paths:
+  /auth/register:
+    post:
+      operationId: registerUser
+      summary: Register a new user account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: Username already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/login:
+    post:
+      operationId: loginUser
+      summary: Get a session token (also sets a cookie for browser clients)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: Invalid username or password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/logout:
+    post:
+      operationId: logoutUser
+      summary: Revoke the current token
+      responses:
+        "200":
+          description: Logged out
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /new_session:
+    post:
+      operationId: createSession
+      summary: Save a workout session with its activities
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSessionRequest"
+      responses:
+        "201":
+          description: Session saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /new_exercise:
+    post:
+      operationId: createExercise
+      summary: Create a custom exercise that can later be used in activities
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateExerciseRequest"
+      responses:
+        "201":
+          description: Custom exercise created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExerciseResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /exercises:
+    get:
+      operationId: listExercises
+      summary: Get a user's custom and global exercises
+      parameters:
+        - $ref: "#/components/parameters/FullParam"
+      responses:
+        "200":
+          description: Responds with the user's custom and global exercises
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListExercisesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /exercises/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getExerciseById
+      summary: Get a single exercise by ID
+      responses:
+        "200":
+          description: Responds with the exercise
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExerciseResponse"
+        "404":
+          description: No exercise with the provided id found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /sessions:
+    get:
+      operationId: listSessions
+      summary: Get a user's saved sessions
+      parameters:
+        - $ref: "#/components/parameters/FullParam"
+      responses:
+        "200":
+          description: Responds with the user's sessions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListSessionsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /sessions/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getSessionById
+      summary: Get a single session by ID, including its activities
+      responses:
+        "200":
+          description: Responds with the session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "404":
+          description: No session with the provided id found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /users/me:
+    get:
+      operationId: getCurrentUser
+      summary: Get the current authenticated user's profile
+      responses:
+        "200":
+          description: Responds with the current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    patch:
+      operationId: updateCurrentUser
+      summary: Update the current authenticated user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: opengymvault_token
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  parameters:
+    FullParam:
+      name: full
+      in: query
+      description: If true, return the full contents of each item instead of a summarized view
+      required: false
+      schema:
+        type: boolean
+        default: false
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    RegisterRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          maxLength: 10
+        display_name:
+          type: string
+          maxLength: 40
+        password:
+          type: string
+          minLength: 8
+      required: [username, display_name, password]
+
+    RegisterResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        display_name:
+          type: string
+
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required: [username, password]
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        user_id:
+          type: string
+        username:
+          type: string
+
+    CreateActivityRequest:
+      type: object
+      properties:
+        exercise_id:
+          description: Only required when activity_type is exercise
+          type: ["string", "null"]
+        activity_type:
+          type: string
+          enum: [exercise, rest, other]
+        reps:
+          type: ["integer", "null"]
+        weight:
+          type: ["number", "null"]
+          format: float
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        perceived_effort:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 10
+      required: [activity_type, start_time, end_time]
+
+    CreateSessionRequest:
+      type: object
+      properties:
+        session_type:
+          type: string
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        overall_perceived_effort:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 10
+        burned_cals:
+          type: ["integer", "null"]
+        user_notes:
+          type: ["string", "null"]
+        activities:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateActivityRequest'
+          maxItems: 500
+      required: [session_type, start_time, end_time, activities]
+
+    ActivityResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        exercise_id:
+          type: ["string", "null"]
+        activity_type:
+          type: string
+        reps:
+          type: ["integer", "null"]
+        weight:
+          type: ["number", "null"]
+        sort_order:
+          type: integer
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        total_time_seconds:
+          type: integer
+        perceived_effort:
+          type: ["integer", "null"]
+
+    SessionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        user_id:
+          type: ["string", "null"]
+        session_type:
+          type: string
+        start_time:
+          type: ["string", "null"]
+          format: date-time
+        end_time:
+          type: ["string", "null"]
+          format: date-time
+        total_time_seconds:
+          type: ["integer", "null"]
+        total_weight:
+          type: ["number", "null"]
+        overall_perceived_effort:
+          type: ["integer", "null"]
+        burned_cals:
+          type: ["integer", "null"]
+        user_notes:
+          type: ["string", "null"]
+        activities:
+          type: ["array", "null"]
+          items:
+            $ref: '#/components/schemas/ActivityResponse'
+
+    CreateExerciseRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        alternative_names:
+          type: ["array", "null"]
+          items:
+            type: string
+        explanation:
+          type: ["string", "null"]
+        created_at:
+          type: ["string", "null"]
+          format: date-time
+        client_s:
+          type: ["object", "null"]
+      required: [name]
+
+    ExerciseResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        user_id:
+          type: ["string", "null"]
+        name:
+          type: string
+        alternative_names:
+          type: ["array", "null"]
+          items:
+            type: string
+        explanation:
+          type: ["string", "null"]
+        created_at:
+          type: ["string", "null"]
+          format: date-time
+        client_s:
+          type: ["object", "null"]
+
+    ListExercisesResponse:
+      type: array
+      items:
+        $ref: '#/components/schemas/ExerciseResponse'
+
+    ListSessionsResponse:
+      type: array
+      items:
+        $ref: '#/components/schemas/SessionResponse'
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        display_name:
+          type: string
+        bio:
+          type: ["string", "null"]
+        sex:
+          type: ["string", "null"]
+        birthday:
+          type: string
+        client_s:
+          type: ["object", "null"]
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+          maxLength: 10
+        display_name:
+          type: string
+          maxLength: 40
+        bio:
+          type: ["string", "null"]
+          maxLength: 500
+        sex:
+          type: ["string", "null"]
+          maxLength: 20
+        birthday:
+          type: string
+          format: date-time
+        client_s:
+          type: ["object", "null"]

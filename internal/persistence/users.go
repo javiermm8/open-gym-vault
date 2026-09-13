@@ -91,7 +91,7 @@ func (s *Store) ExtendTokenExpiry(ctx context.Context, rawToken string) (string,
 
 	if token.ExpiresAt.Time.Before(time.Now()) {
 		if err = s.Queries.DeleteAuthToken(ctx, auth.HashToken(hash)); err != nil {
-			log.Printf("deleting auth token: %w", err)
+			log.Printf("deleting auth token: %v", err)
 		}
 		return "", ErrTokenInvalidOrExpired
 	}
