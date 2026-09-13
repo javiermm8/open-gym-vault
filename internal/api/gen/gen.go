@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -167,7 +168,7 @@ type SessionResponse struct {
 // UpdateUserRequest defines model for UpdateUserRequest.
 type UpdateUserRequest struct {
 	Bio         *string                 `json:"bio,omitempty"`
-	Birthday    *time.Time              `json:"birthday,omitempty"`
+	Birthday    *openapi_types.Date     `json:"birthday,omitempty"`
 	ClientS     *map[string]interface{} `json:"client_s,omitempty"`
 	DisplayName *string                 `json:"display_name,omitempty"`
 	Id          *string                 `json:"id,omitempty"`
@@ -245,6 +246,12 @@ type ServerInterface interface {
 	// CreateSession Save a workout session with its activities
 	// (POST /new_session)
 	CreateSession(w http.ResponseWriter, r *http.Request)
+	// ServeOpenAPIDocs Get the openapi html docs
+	// (GET /openapi)
+	ServeOpenAPIDocs(w http.ResponseWriter, r *http.Request)
+	// ServeOpenAPISpec Get the openapi spec
+	// (GET /openapi.json)
+	ServeOpenAPISpec(w http.ResponseWriter, r *http.Request)
 	// ListSessions Get a user's saved sessions
 	// (GET /sessions)
 	ListSessions(w http.ResponseWriter, r *http.Request, params ListSessionsParams)
@@ -388,6 +395,34 @@ func (siw *ServerInterfaceWrapper) CreateSession(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateSession(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ServeOpenAPIDocs operation middleware
+func (siw *ServerInterfaceWrapper) ServeOpenAPIDocs(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ServeOpenAPIDocs(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ServeOpenAPISpec operation middleware
+func (siw *ServerInterfaceWrapper) ServeOpenAPISpec(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ServeOpenAPISpec(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -604,6 +639,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/openapi.json", wrapper.ServeOpenAPISpec)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/openapi", wrapper.ServeOpenAPIDocs)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/register", wrapper.RegisterUser)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/login", wrapper.LoginUser)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/logout", wrapper.LogoutUser)
@@ -974,6 +1011,54 @@ func (response CreateSession401JSONResponse) VisitCreateSessionResponse(w http.R
 	return err
 }
 
+type ServeOpenAPIDocsRequestObject struct {
+}
+
+type ServeOpenAPIDocsResponseObject interface {
+	VisitServeOpenAPIDocsResponse(w http.ResponseWriter) error
+}
+
+type ServeOpenAPIDocs200TexthtmlResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response ServeOpenAPIDocs200TexthtmlResponse) VisitServeOpenAPIDocsResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "text/html")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type ServeOpenAPISpecRequestObject struct {
+}
+
+type ServeOpenAPISpecResponseObject interface {
+	VisitServeOpenAPISpecResponse(w http.ResponseWriter) error
+}
+
+type ServeOpenAPISpec200JSONResponse map[string]interface{}
+
+func (response ServeOpenAPISpec200JSONResponse) VisitServeOpenAPISpecResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListSessionsRequestObject struct {
 	Params ListSessionsParams
 }
@@ -1190,6 +1275,12 @@ type StrictServerInterface interface {
 	// CreateSession Save a workout session with its activities
 	// (POST /new_session)
 	CreateSession(ctx context.Context, request CreateSessionRequestObject) (CreateSessionResponseObject, error)
+	// ServeOpenAPIDocs Get the openapi html docs
+	// (GET /openapi)
+	ServeOpenAPIDocs(ctx context.Context, request ServeOpenAPIDocsRequestObject) (ServeOpenAPIDocsResponseObject, error)
+	// ServeOpenAPISpec Get the openapi spec
+	// (GET /openapi.json)
+	ServeOpenAPISpec(ctx context.Context, request ServeOpenAPISpecRequestObject) (ServeOpenAPISpecResponseObject, error)
 	// ListSessions Get a user's saved sessions
 	// (GET /sessions)
 	ListSessions(ctx context.Context, request ListSessionsRequestObject) (ListSessionsResponseObject, error)
@@ -1443,6 +1534,54 @@ func (sh *strictHandler) CreateSession(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ServeOpenAPIDocs operation middleware
+func (sh *strictHandler) ServeOpenAPIDocs(w http.ResponseWriter, r *http.Request) {
+	var request ServeOpenAPIDocsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ServeOpenAPIDocs(ctx, request.(ServeOpenAPIDocsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ServeOpenAPIDocs")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ServeOpenAPIDocsResponseObject); ok {
+		if err := validResponse.VisitServeOpenAPIDocsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ServeOpenAPISpec operation middleware
+func (sh *strictHandler) ServeOpenAPISpec(w http.ResponseWriter, r *http.Request) {
+	var request ServeOpenAPISpecRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ServeOpenAPISpec(ctx, request.(ServeOpenAPISpecRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ServeOpenAPISpec")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ServeOpenAPISpecResponseObject); ok {
+		if err := validResponse.VisitServeOpenAPISpecResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListSessions operation middleware
 func (sh *strictHandler) ListSessions(w http.ResponseWriter, r *http.Request, params ListSessionsParams) {
 	var request ListSessionsRequestObject
@@ -1555,38 +1694,40 @@ func (sh *strictHandler) UpdateCurrentUser(w http.ResponseWriter, r *http.Reques
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
+	"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",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

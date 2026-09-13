@@ -14,6 +14,31 @@ security:
   - cookieAuth: []
 
 paths:
+  /openapi.json:
+    get:
+      operationId: serveOpenAPISpec
+      summary: Get the openapi spec
+      security: []
+      responses:
+        "200":
+          description: Serves the openapi spec
+          content:
+            application/json:
+              schema:
+                type: object
+                description: The OpenAPI specification document itself
+
+  /openapi:
+    get:
+      operationId: serveOpenAPIDocs
+      summary: Get the openapi html docs
+      security: []
+      responses:
+        "200":
+          description: Serves the openapi html docs
+          content:
+            text/html: {}
+
   /auth/register:
     post:
       operationId: registerUser

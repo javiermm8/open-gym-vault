@@ -14,9 +14,11 @@ import (
 const cookieName = "opengymvault_token"
 
 var publicOperations = map[string]bool{
-	"LoginUser":    true,
-	"RegisterUser": true,
-	"LogoutUser":   true,
+	"LoginUser":        true,
+	"RegisterUser":     true,
+	"LogoutUser":       true,
+	"ServeOpenAPISpec": true,
+	"ServeOpenAPIDocs": true,
 }
 
 type ctxKeyUserID struct{}

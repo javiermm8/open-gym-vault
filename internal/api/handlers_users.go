@@ -37,7 +37,7 @@ func (s *Server) UpdateCurrentUser(ctx context.Context, r gen.UpdateCurrentUserR
 
 	var birthday time.Time
 	if r.Body.Birthday != nil {
-		birthday = *r.Body.Birthday
+		birthday = r.Body.Birthday.Time
 	}
 	var username string
 	if r.Body.Username != nil {
