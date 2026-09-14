@@ -69,6 +69,12 @@ type AuthResponse struct {
 	Username  *string    `json:"username,omitempty"`
 }
 
+// ChangePasswordRequest defines model for ChangePasswordRequest.
+type ChangePasswordRequest struct {
+	NewPassword string `json:"new_password"`
+	Password    string `json:"password"`
+}
+
 // CreateActivityRequest defines model for CreateActivityRequest.
 type CreateActivityRequest struct {
 	ActivityType CreateActivityRequestActivityType `json:"activity_type"`
@@ -208,6 +214,9 @@ type ListSessionsParams struct {
 	Full *FullParam `form:"full,omitempty" json:"full,omitempty"`
 }
 
+// ChangePasswordJSONRequestBody defines body for ChangePassword for application/json ContentType.
+type ChangePasswordJSONRequestBody = ChangePasswordRequest
+
 // LoginUserJSONRequestBody defines body for LoginUser for application/json ContentType.
 type LoginUserJSONRequestBody = LoginRequest
 
@@ -225,6 +234,9 @@ type UpdateCurrentUserJSONRequestBody = UpdateUserRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// ChangePassword Change the user's password and revoke all of its session tokens
+	// (POST /auth/change_password)
+	ChangePassword(w http.ResponseWriter, r *http.Request)
 	// LoginUser Get a session token (also sets a cookie for browser clients)
 	// (POST /auth/login)
 	LoginUser(w http.ResponseWriter, r *http.Request)
@@ -258,6 +270,9 @@ type ServerInterface interface {
 	// GetSessionById Get a single session by ID, including its activities
 	// (GET /sessions/{id})
 	GetSessionById(w http.ResponseWriter, r *http.Request, id string)
+	// GetPersonalRecord Get the highest weight lifted given an exerciseID
+	// (GET /stats/personal_record/{id})
+	GetPersonalRecord(w http.ResponseWriter, r *http.Request, id string)
 	// GetCurrentUser Get the current authenticated user's profile
 	// (GET /users/me)
 	GetCurrentUser(w http.ResponseWriter, r *http.Request)
@@ -274,6 +289,20 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// ChangePassword operation middleware
+func (siw *ServerInterfaceWrapper) ChangePassword(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangePassword(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // LoginUser operation middleware
 func (siw *ServerInterfaceWrapper) LoginUser(w http.ResponseWriter, r *http.Request) {
@@ -491,6 +520,32 @@ func (siw *ServerInterfaceWrapper) GetSessionById(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// GetPersonalRecord operation middleware
+func (siw *ServerInterfaceWrapper) GetPersonalRecord(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPersonalRecord(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetCurrentUser operation middleware
 func (siw *ServerInterfaceWrapper) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 
@@ -644,6 +699,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/register", wrapper.RegisterUser)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/login", wrapper.LoginUser)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/logout", wrapper.LogoutUser)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/change_password", wrapper.ChangePassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/new_session", wrapper.CreateSession)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/new_exercise", wrapper.CreateExercise)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/exercises", wrapper.ListExercises)
@@ -652,6 +708,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sessions/{id}", wrapper.GetSessionById)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/users/me", wrapper.GetCurrentUser)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/users/me", wrapper.UpdateCurrentUser)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/stats/personal_record/{id}", wrapper.GetPersonalRecord)
 
 	return m
 }
@@ -659,6 +716,50 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 type BadRequestJSONResponse Error
 
 type UnauthorizedJSONResponse Error
+
+type ChangePasswordRequestObject struct {
+	Body *ChangePasswordJSONRequestBody
+}
+
+type ChangePasswordResponseObject interface {
+	VisitChangePasswordResponse(w http.ResponseWriter) error
+}
+
+type ChangePassword204Response struct {
+}
+
+func (response ChangePassword204Response) VisitChangePasswordResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type ChangePassword400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ChangePassword400JSONResponse) VisitChangePasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ChangePassword401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ChangePassword401JSONResponse) VisitChangePasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
 
 type LoginUserRequestObject struct {
 	Body *LoginUserJSONRequestBody
@@ -883,16 +984,16 @@ func (response GetExerciseById401JSONResponse) VisitGetExerciseByIdResponse(w ht
 	return err
 }
 
-type GetExerciseById404JSONResponse Error
+type GetExerciseById403JSONResponse Error
 
-func (response GetExerciseById404JSONResponse) VisitGetExerciseByIdResponse(w http.ResponseWriter) error {
+func (response GetExerciseById403JSONResponse) VisitGetExerciseByIdResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
 		return err
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
+	w.WriteHeader(403)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -1153,16 +1254,68 @@ func (response GetSessionById401JSONResponse) VisitGetSessionByIdResponse(w http
 	return err
 }
 
-type GetSessionById404JSONResponse Error
+type GetSessionById403JSONResponse Error
 
-func (response GetSessionById404JSONResponse) VisitGetSessionByIdResponse(w http.ResponseWriter) error {
+func (response GetSessionById403JSONResponse) VisitGetSessionByIdResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
 		return err
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPersonalRecordRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetPersonalRecordResponseObject interface {
+	VisitGetPersonalRecordResponse(w http.ResponseWriter) error
+}
+
+type GetPersonalRecord200JSONResponse struct {
+	MaxWeight *int `json:"max_weight,omitempty"`
+}
+
+func (response GetPersonalRecord200JSONResponse) VisitGetPersonalRecordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPersonalRecord400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetPersonalRecord400JSONResponse) VisitGetPersonalRecordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPersonalRecord401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetPersonalRecord401JSONResponse) VisitGetPersonalRecordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -1254,6 +1407,9 @@ func (response UpdateCurrentUser401JSONResponse) VisitUpdateCurrentUserResponse(
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// ChangePassword Change the user's password and revoke all of its session tokens
+	// (POST /auth/change_password)
+	ChangePassword(ctx context.Context, request ChangePasswordRequestObject) (ChangePasswordResponseObject, error)
 	// LoginUser Get a session token (also sets a cookie for browser clients)
 	// (POST /auth/login)
 	LoginUser(ctx context.Context, request LoginUserRequestObject) (LoginUserResponseObject, error)
@@ -1287,6 +1443,9 @@ type StrictServerInterface interface {
 	// GetSessionById Get a single session by ID, including its activities
 	// (GET /sessions/{id})
 	GetSessionById(ctx context.Context, request GetSessionByIdRequestObject) (GetSessionByIdResponseObject, error)
+	// GetPersonalRecord Get the highest weight lifted given an exerciseID
+	// (GET /stats/personal_record/{id})
+	GetPersonalRecord(ctx context.Context, request GetPersonalRecordRequestObject) (GetPersonalRecordResponseObject, error)
 	// GetCurrentUser Get the current authenticated user's profile
 	// (GET /users/me)
 	GetCurrentUser(ctx context.Context, request GetCurrentUserRequestObject) (GetCurrentUserResponseObject, error)
@@ -1332,6 +1491,37 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// ChangePassword operation middleware
+func (sh *strictHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	var request ChangePasswordRequestObject
+
+	var body ChangePasswordJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ChangePassword(ctx, request.(ChangePasswordRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ChangePassword")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ChangePasswordResponseObject); ok {
+		if err := validResponse.VisitChangePasswordResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // LoginUser operation middleware
@@ -1634,6 +1824,32 @@ func (sh *strictHandler) GetSessionById(w http.ResponseWriter, r *http.Request, 
 	}
 }
 
+// GetPersonalRecord operation middleware
+func (sh *strictHandler) GetPersonalRecord(w http.ResponseWriter, r *http.Request, id string) {
+	var request GetPersonalRecordRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPersonalRecord(ctx, request.(GetPersonalRecordRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPersonalRecord")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetPersonalRecordResponseObject); ok {
+		if err := validResponse.VisitGetPersonalRecordResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetCurrentUser operation middleware
 func (sh *strictHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 	var request GetCurrentUserRequestObject
@@ -1694,40 +1910,43 @@ func (sh *strictHandler) UpdateCurrentUser(w http.ResponseWriter, r *http.Reques
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"3Fptb+O4Ef4rBFugLaCNnd0t0Ppbdu8aBE3vgk3TL0Fg0OLI5oUideTIjhvovxckJVmyJL9k46TYT7uW",
-	"qOHMM8+8cJhnGus00woUWjp5phkzLAUE43/9I5fyxj1xPzjY2IgMhVZ0Qq8SgiaHiBjA3CiCCyBJLiWJ",
-	"tUInjeiEAIsXRCCkRCiLwLh7yIjN05QZ8V/gZClgRSMqnMjfczBrGlHFUqAT6qTRiNp4ASkLCiQsl0gn",
-	"CZMWIorrzK2baS2BKVoURUQN2EwrC179L4x/g99zsOh+lYq5/7IskyJmzpTRb9bZ89zY548GEjqhfxht",
-	"oBmFt3b0szHahK228FBLJgUnptywiOidYjkutDf09Ar8S1gr1JxoQ0Spi9seFJYbUfdNKcbtchGjWApc",
-	"fysh8+43OgODIuDHyhXTgPRzhbhFI9TcmRhLAQqndvPynurZbxCj86Nz4EMRUVB8iiL1IhJtUoZ0QjlD",
-	"+OCfRl258AQmFhamgjdFlwsaopvvG99nYGIQS+BTSBJtsClEKIQ5mKYUA5nds8Rqg1NtOJjGhtU69x6Z",
-	"wSOtRI1M+m+mFmKtuO2XvQIxX7RsUHk6a+pX1NJL9IuIXuS4GPYtPGXCgJ0yPEbfR1C9eOcWzFTwwXch",
-	"pDsv+9T+aoAhbMhZx+8eboLKUwdNRR3qkwHSiGpcgKEP0bvRtx2ovyq59mlCGOBktQBFWsYQYUnDiGHu",
-	"95E8ZU8idUCcjyOaClX+iL6X/S9g94a19fpEaoY02kXjChj3uu3jlhYNrzwMkujnEsVhEkl03ESxhKmj",
-	"qH/o6pXtZXKlNjOGrZvwHMaj2CvF94dcn7PhKZNMhUS+MyMOh1oTWsV2IncL1gqt9kWf2EJsV+Hqj+si",
-	"cpS9CgL+Oh7XGgWMi4jOcqOAT2Mm95H0VNGsl2CYlNPXijcbwB2uqi+JNp+BlUawu+ixxYKWJkPxFTW9",
-	"3UeZ0JJ0K0z1eDcTw7JeuXX4DjYoP2D8DlTRgbDuKb29Xu+Aey0sVgDbJsIHBXPHNUU3cN0OZR45foM6",
-	"Ae2Qr+diOENlzNqVNi9pSZrsrFdGG4l9XP0Gc2ERzKA+XNhMsvW02jZlT9eg5rigk8/jnnhu6p8KVa39",
-	"W7TbmobY83F0uHEt9Q62dSgut43tqPw6reI2SV6jTHVORbvyxjvVpiPSxq7a9SYlqk/XXeeeXnXCB91j",
-	"UM/SA9LhEcWyQ7m7zJl4Z3dE+kzorUhs9DV92syEwQVn6w6S9MVHlmOzzQB7LDxtff1xHO3B9eBM1MXW",
-	"7sopJazvCuORuB0G1F5kvMA4NwLXty5LlXgAM2DcIb8eHvlpmH+8MXmBmHmDtX4UUC3387bwaDNw0xmo",
-	"+TpduiHbNJz1N1U3E/+EdZg7CZXo7rH2cp0SNCx+BENm7h/FyUrggjBB2BwUEh+txrdAZzSiUsRQtQQc",
-	"FIpEgKETenF5c/3h09n4g1ayMQ68/OWOXCQJGE0uQbmsRm7ymRQxuQ6CyBKMS1rkk8/ZAqX77NcM1OU6",
-	"/Y8zilzcXNGIluvohI7Pzs/GbrUznWWCTuins49nY18BceFxHrkp2ki6ZsP9zHSIeUdNb8oVp5PQizj+",
-	"0lBhweIXzdevNvVr9TpFu46jyWF78vlxPH61vVtzpJ7B420ex2Ctg/HzeDwkrVZv1JjK+k/O3244W4Wd",
-	"G5LWLU4zvujk/iGiYT69dqQDdPPqUA2JjwnyZyatJhbQEkZCDJFEGzIzemXBkJBa7F+84Jo9Osed9NE5",
-	"1vxpOfJzN9Su9XwOnOi8RPBI0Iumhd9gqR/Bj+/j3BgXpyH0N9qbst8b1r/qCE8YAdsN9kFBcH6C7YcD",
-	"wVlPWBzrXCEpD4svjoq/nz4q7qpoYNIA42sCT8Ki3RkQFQ6EEQUrkjdMDoypJpfeA3PoI3vz5Emj1pXT",
-	"fb8pmyWjzZVU8XDCpNd/PO4BMbzjNtQ6F0YOkz9ZEucWdUqY4mQu9YxJsoGmiPoD+xe9WURQl3drjTS5",
-	"m0OtC6ei6CayQ1RrOXH0LHgx6MlLqDH6sr7i9IT+6A4cDnFFZcf31aZjQHcffT596DaIsrE2M3opOHAi",
-	"OEl0rvo54C4J5QYaMluTq5/CxKEVh75FdF3QpgUTnG7n3Ob97HYj6xrdkYLVtHbDYAFpz+tPVEL6LwXe",
-	"uJAcQuSvIT5rF31vLXkRi9+gAF2QeMvSkssMyWBhqukc3ElYR4j/PmaKSOYq1cynZE5Efc8mqjznyFk2",
-	"d/u4Wc6aTkrNrVuXN2ZmZ+Ta0+qHJcSy5VvSseX2W7Z0Tl9p86hzrHtzzxyBtuPj+mg3UMRuwSzBnRIv",
-	"bq5+0rHdX8UQnnC0wFTSyXMfRmbpqvcCSLk1cWsJd7L3nTWGv6rsOKucuteY2wzi7y3JbdP+vQBSCic2",
-	"g1gk5ZdOzTz1Z3y0IBPanWEcgpOTeRRE9Qejkga7u87qNuL/uens3Jgc03PWKLxzg+nzQ0Obpof2tpQl",
-	"AqfuKA9Id12cSyN+xH6ylUiPbierr303GRGhYplz9+do2yn5VH2mY54dpbCLWV/DgKN/zvJ6zGrNsQ+i",
-	"VTV5cUa8VjA25Tb+EBB4FaSZ0YmQEFyC8aILWbjs2Ebt9buf7qXKG48493nMvSe51/K92p6A0RFe3aqj",
-	"7QuD+4ciem7dCdw/uNJmXVEuAzM3kk7oiBYPxf8GAA==",
+	"3Fpfb+O4Ef8qA7ZAW0AbO7tboPVbdu8aBE3vgqTpSxAYtDSyeKFILUk5cQN/94KkJOu/7SROinvajUQN",
+	"Z34zv5nh0M8klGkmBQqjyeyZZFTRFA0q99c/cs6v7BP7R4Q6VCwzTAoyIxcxGJVjAApNrgSYBCHOOYdQ",
+	"CmOlgYwBaZgAM5gCE9ogjexDCjpPU6rYfzGCFcNHEhBmRf7IUa1JQARNkcyIlUYCosMEU+oViGnODZnF",
+	"lGsMiFlndt1CSo5UkM1mExCFOpNCo1P/G42u8UeO2ti/CsXsf2mWcRZSa8rkN23tea7t80eFMZmRP0y2",
+	"0Ez8Wz35WSmp/FYtPMSKchaBKjbcBORW0Nwk0hl6fAX+xbRmYglSASt0sdujMMVGxH5TiLG7nIWGrZhZ",
+	"XxeQOfcrmaEyzONHixVzj/Rzibg2iomlNTHkDIWZ6+3LOyIXv2ForB+tA+83AUERzQ1LnYhYqpQaMiMR",
+	"NfjJPQ26cvEJVcg0zllUF10sqImuv699n6EKka0wmmMcS2XqQpgwuERVl6Iw0zuWaKnMXKoIVW3Dcp19",
+	"b6gyB1pppKHcfTPXGEoR6X7Zj8iWScMGkaeLun6bSnqB/iYgZ7lJhn2LTxlTqOfUHKLvA4pevHONas6i",
+	"wXee0p2XfWp/T6hY4hXV+lGqOn+b+gt8nGfFov4QGH7pPP4jZ8ry8m67MmhKve/TTiE1uKXOgHYd5qDI",
+	"U7tXGdjEpSpDAiJNgqq217uTq5lGfhV8DSU68JiggIYxwDTUjBhmZh8FU/rEUgvE6TQgKRPFH8FrufkC",
+	"7m05Va2PuaSGBGMkq4dN08cNLWpeGQ6inwsUh4OIG8scw1Y4twRyD2011b0BX6pNlaLrOjz7xVHolIp2",
+	"J4Q+Z+NTxqnwZWY0Xw8ngjq0go4id4NaMyl2sY+1EBsrq/283gQ2ZC+8gL9Op5VGHuNNQBa5EhjNQ8p3",
+	"Bemx2CxXqCjn87fim/bgDtf8l7DN1QchDeqx8GhFQUOTIX4FdW/3hYxvmLr1r3w8Hol+Wa/cir6D7dPv",
+	"kL8DNX6A1j2NQa/XO+BeMm1KgHUd4b3I3HHNpktcu0ORRw7foEpAI/Llkg1nqNHOZbxhqkdntbLW7vTF",
+	"6jUumTaoBvWJmM44Xc/LbVP6dIliaRIy+zoNxpurlIly7d+CcWtqYk+nwf7GNdTb29YhXraN7aj8No1s",
+	"O0jeokx1zmxjeeODatMBaWOsdr1LierTdexU1quO/6B7SOtZukc6PKBYdkLuNrMm3uoRpi+YbDGx1tf0",
+	"abNgyiQRXXeQJC8+shyabQaiR+NT6+vP02AHrntnoi62eiynFLB+KIwH4rYfUDuRcQLDXDGzvrFZqsAD",
+	"qUJlRxDVaMvN6tzjrcmJMZkzWMoHhuVyNw30j7bjQJmhWK7TlR0Bzv0kYlt1M/ZPXPupGBOx7B5rz9cp",
+	"GEXDB1SwsP+ICB6ZSYAyoEsUBhxblWuBTkhAOAuxbAkiFIbFDBWZkbPzq8tPX06mn6TgtWHl+S+3cBbH",
+	"qCSco7BZDa7yBWchXHpBsEJlkxZ8cTmbGW4/+zVDcb5O/2ONgrOrCxKQYh2ZkenJ6cnUrram04yRGfly",
+	"8vlk6iqgSRzOEzvjm4RuZtKYh2TSs98GqTPqIiKz1nCF+IKL2nyT0frNRpT9E5xNs74blWN7Xvt5+rXr",
+	"uVIOeCMjoCIC538NClfyASPQeRiitgNj13t9nU6HdKz2m9SGw+6T092fNAa6LvDdIHtdAeum4JY9f9JQ",
+	"OsPp6xUFyrmdgDOjoahhhSVOmvclt43jsAddX2lz0ZGc1+hb9/LZ9M32bkwse0bcN87N+nUufp9rgDKF",
+	"2nF8Rct6riSzu/t6AJ2jAdqMCvgz5VqCRqOBgs+HEEsFCyUfNSrwZUL/pRk9Mjej4SNzU8XPLvJdyqWl",
+	"nMwLBA8EvUGRa88BS5EwV8rmXGdmTXtV9O7D+pfd/REZ0D4s7UWC0yNsP0wEaz3QMJS5MFAc/F/Mir8f",
+	"nxW3JRsoV0ijNeAT00aPEqLEASgIfIS8ZrKPmHIK7TywxL5gr08RSNC43LzrN2W7ZLK9/NzcHzHp9Y86",
+	"ekD07yLt+5ZapQlzbWTq6sySywXlsIVmE/QT+xe5XQRGFre4b1EJfSLbR7WGEyfPLNoMevIcK4y+rS8i",
+	"ckR/dIdH+7iitOP92g/70ZfjU7cWKFtrMyVXLMIIWASxzEVky1wZkfaGKK+pasOLusINzPQGi7235lsM",
+	"YbGGi5/8mKlBWHcusK3vtu9mEWkn5/pPBtqnF3u6mdhLvspfw61y45LmWK1y703QO1ecfSL+uydy5aLX",
+	"Fp0Xhfs7VKozCFuWFkFPDQxWsO0pwKECtCPEfR9SAZzakrZwTImAVZerrEyINjiLLnBXbBYDxqOGZuuq",
+	"7Z0jszNn7zkT+CWg6eo9w7Hh9hu6sk5/lOpB5qZq4l3k2LNe28fVeX6g2t2gWqEdDZxdXfwkQ7273Bl8",
+	"MpPEpJzMnvswUitb5hOEYmuwayGysncdSoa/Ku04KZ2605ibDMPX1u6maf9OEArhoDMMWVx8adXMUzfY",
+	"MRp5TLqDq31wsjIPgqj6YFKEwXh7Wl5B/T93p51rskOa0wqFD+5EXX6oaVP30M7es0Dg2K3nHumui3Nh",
+	"xO+x8Wwk0uP1neU2ru0MgImQ55H9KWU7dx+rIdWGWnKj0lJQPlcYShXtDMqrYv21W/7auGxeZ6T0qXOh",
+	"tf1F4maPXNoN1IQtE9QGvFzgLDYfVrHLrN2rEyzZCgVQUSWmY55GbOjqSYpjrv7u52X9Y7u3yz+NK669",
+	"fFoO8qwRb+mXUm7tF8wYVZN1JWPG0bvEhEkXMn8P2kbt7Xvk7n3rO0/Md3nMvofcaflRVPMYHeDVVrfV",
+	"vEu8u98Ez43rwrt72wBp27oVxMwVJzMyIZv7zf8GAA==",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

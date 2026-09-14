@@ -20,6 +20,10 @@ migrate-down:
 sqlc:
 	sqlc generate
 
+# generate api layer with oapi-codegen
+oapi:
+	go generate ./...
+
 # Run the app
 run:
-	go run ./cmd/gymvault
+	go run ./cmd/opengymvault

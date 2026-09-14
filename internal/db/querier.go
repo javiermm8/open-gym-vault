@@ -24,6 +24,7 @@ type Querier interface {
 	// users -> exercises during a single `DELETE FROM users`.
 	DeleteActivitiesByUser(ctx context.Context, userID string) error
 	DeleteAuthToken(ctx context.Context, tokenHash string) error
+	DeleteAuthTokenByUserID(ctx context.Context, userID string) error
 	// Deletes the user's own custom exercises. Must run after
 	// DeleteActivitiesByUser so no activity still references them.
 	DeleteExercisesByUser(ctx context.Context, userID pgtype.Text) error
@@ -31,15 +32,18 @@ type Querier interface {
 	DeleteUser(ctx context.Context, id string) error
 	GetAuthTokenByHash(ctx context.Context, tokenHash string) (AuthToken, error)
 	GetExerciseByID(ctx context.Context, id string) (Exercise, error)
+	GetMaxWeightByExerciseID(ctx context.Context, arg GetMaxWeightByExerciseIDParams) (int32, error)
 	GetSessionByID(ctx context.Context, id string) (Session, error)
 	GetUserByID(ctx context.Context, id string) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	ListActivitiesBySession(ctx context.Context, sessionID string) ([]Activity, error)
+	ListActivitiesByUser(ctx context.Context, userIDInAct string) ([]Activity, error)
 	// Global exercises plus this user's own custom ones.
 	ListExercisesForUser(ctx context.Context, userID pgtype.Text) ([]Exercise, error)
 	ListGlobalExercises(ctx context.Context) ([]Exercise, error)
 	ListSessionsByUser(ctx context.Context, userID string) ([]Session, error)
 	RefreshAuthTokenExpiry(ctx context.Context, arg RefreshAuthTokenExpiryParams) error
+	UpdatePasswordHashByID(ctx context.Context, arg UpdatePasswordHashByIDParams) error
 	UpdateUserByID(ctx context.Context, arg UpdateUserByIDParams) (User, error)
 }
 

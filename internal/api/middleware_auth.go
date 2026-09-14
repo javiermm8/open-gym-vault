@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -81,6 +82,7 @@ func (s *Server) Authenticate(f gen.StrictHandlerFunc, operationID string) gen.S
 				writeErrorMessage(w, http.StatusUnauthorized, "invalid or expired token")
 				return nil, nil
 			}
+			log.Printf("500 at ExtendTokenExpiry: %v", err)
 			return nil, err
 		}
 

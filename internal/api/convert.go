@@ -101,7 +101,10 @@ func toActivityResponse(a db.Activity) gen.ActivityResponse {
 	secs := int(a.TotalTime.Microseconds / 1_000_000)
 	var weight *float32
 	if a.Weight.Valid {
-		weight = &a.Weight.Float32
+		if f64, err := a.Weight.Float64Value(); err == nil {
+			w := float32(f64.Float64)
+			weight = &w
+		}
 	}
 
 	return gen.ActivityResponse{

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/javiermm8/open-gym-vault/internal/db"
@@ -69,11 +70,12 @@ func (s *Store) CreateSessionWithActivities(ctx context.Context, in NewSession) 
 			}
 
 			activity, err := q.CreateActivity(ctx, db.CreateActivityParams{
+				UserIDInAct:     session.UserID,
 				SessionID:       session.ID,
 				ExerciseID:      ToPgTextPtr(a.ExerciseID),
 				ActivityType:    a.ActivityType,
 				Reps:            ToPgInt4Ptr(a.Reps),
-				Weight:          ToPgFloat4Ptr(a.Weight),
+				Weight:          ToPgNumericPtr(a.Weight),
 				SortOrder:       int32(i),
 				StartTime:       ToPgTimestamptz(a.StartTime),
 				EndTime:         ToPgTimestamptz(a.EndTime),
@@ -97,14 +99,14 @@ func (s *Store) CreateSessionWithActivities(ctx context.Context, in NewSession) 
 }
 
 func computeTotalWeight(activities []NewActivity) int32 {
-	var total float32
+	var total float64
 	for _, a := range activities {
 		if a.Weight == nil || a.Reps == nil {
 			continue
 		}
-		total += *a.Weight * float32(*a.Reps)
+		total += float64(*a.Weight) * float64(*a.Reps)
 	}
-	return int32(total)
+	return int32(math.Round(total))
 }
 
 func (s *Store) QuerySession(ctx context.Context, sessionID string) (db.Session, []db.Activity, error) {
@@ -137,4 +139,13 @@ func (s *Store) QueryActivities(ctx context.Context, sessionID string) ([]db.Act
 	}
 
 	return activity, nil
+}
+
+func (s *Store) QueryActivitiesByUser(ctx context.Context, userID string) ([]db.Activity, error) {
+	activities, err := s.Queries.ListActivitiesByUser(ctx, userID)
+	if err != nil {
+		return []db.Activity{}, fmt.Errorf("Quering activities: %w", err)
+	}
+
+	return activities, nil
 }

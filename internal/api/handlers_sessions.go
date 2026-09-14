@@ -134,6 +134,7 @@ func (s *Server) CreateSession(ctx context.Context, r gen.CreateSessionRequestOb
 				return nil, err
 			}
 		}
+		log.Printf("500 at CreateSession: %v", err)
 		return nil, err
 	}
 
@@ -161,7 +162,7 @@ func (s *Server) CreateSession(ctx context.Context, r gen.CreateSessionRequestOb
 func (s *Server) ListSessions(ctx context.Context, r gen.ListSessionsRequestObject) (gen.ListSessionsResponseObject, error) {
 	sessions, err := s.store.QuerySessions(ctx, AuthenticateUserID(ctx))
 	if err != nil {
-		log.Printf("ListExercises: %v", err)
+		log.Printf("500 at ListSessions: %v", err)
 		return nil, err
 	}
 
@@ -171,6 +172,19 @@ func (s *Server) ListSessions(ctx context.Context, r gen.ListSessionsRequestObje
 
 	full := r.Params.Full != nil && *r.Params.Full
 
+	var activitiesBySession map[string][]gen.ActivityResponse
+	if full {
+		activitiesDB, err := s.store.QueryActivitiesByUser(ctx, AuthenticateUserID(ctx))
+		if err != nil {
+			log.Printf("500 at ListSessions: %v", err)
+			return nil, err
+		}
+		activitiesBySession = make(map[string][]gen.ActivityResponse, len(sessions))
+		for _, a := range activitiesDB {
+			activitiesBySession[a.SessionID] = append(activitiesBySession[a.SessionID], toActivityResponse(a))
+		}
+	}
+
 	sessionResponses := make([]gen.SessionResponse, len(sessions))
 	for i, n := range sessions {
 		sessionResponses[i] = gen.SessionResponse{
@@ -179,13 +193,9 @@ func (s *Server) ListSessions(ctx context.Context, r gen.ListSessionsRequestObje
 			ClientS:     clientSFromDB(n.ClientS),
 		}
 		if full {
-			activitiesDB, err := s.store.QueryActivities(ctx, n.ID)
-			if err != nil {
-				return nil, err
-			}
-			activities := make([]gen.ActivityResponse, len(activitiesDB))
-			for i, n := range activitiesDB {
-				activities[i] = toActivityResponse(n)
+			activities, ok := activitiesBySession[n.ID]
+			if !ok {
+				activities = make([]gen.ActivityResponse, 0)
 			}
 			sessionResponses[i].Activities = &activities
 			sessionResponses[i].EndTime = &n.EndTime.Time
@@ -221,18 +231,17 @@ func (s *Server) GetSessionById(ctx context.Context, r gen.GetSessionByIdRequest
 	session, activities, err := s.store.QuerySession(ctx, r.Id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return gen.GetSessionById404JSONResponse{
-				Error: "session not found",
+			return gen.GetSessionById403JSONResponse{
+				Error: "forbidden",
 			}, nil
 		}
+		log.Printf("500 at GetSessionById: %v", err)
 		return nil, err
 	}
 
 	if AuthenticateUserID(ctx) != session.UserID {
-		return gen.GetSessionById401JSONResponse{
-			UnauthorizedJSONResponse: gen.UnauthorizedJSONResponse{
-				Error: "Unauthorized",
-			},
+		return gen.GetSessionById403JSONResponse{
+			Error: "forbidden",
 		}, nil
 	}
 

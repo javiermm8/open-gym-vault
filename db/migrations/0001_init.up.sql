@@ -63,11 +63,12 @@ CREATE INDEX idx_sessions_user_id_start_time ON sessions(user_id, start_time DES
 
 CREATE TABLE activities (
     id               TEXT PRIMARY KEY DEFAULT generate_prefixed_id('act'),
+    user_id_in_act   TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     session_id       TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
     exercise_id      TEXT REFERENCES exercises(id) ON DELETE RESTRICT,
     activity_type    TEXT NOT NULL,
     reps             INTEGER,
-    weight           REAL, -- kg
+    weight           NUMERIC(6,2), -- kg, exact decimals
     sort_order       INTEGER NOT NULL,
     start_time       TIMESTAMPTZ NOT NULL,
     end_time         TIMESTAMPTZ NOT NULL,
@@ -102,6 +103,7 @@ CREATE TABLE activities (
     )
 );
 
+CREATE INDEX idx_activities_user_id ON activities(user_id_in_act);
 CREATE INDEX idx_activities_session_id ON activities(session_id);
 CREATE INDEX idx_activities_exercise_id ON activities(exercise_id);
 

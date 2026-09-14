@@ -61,6 +61,7 @@ func (s *Server) CreateExercise(ctx context.Context, r gen.CreateExerciseRequest
 				}, nil
 			}
 		}
+		log.Printf("500 at CreateExercise: %v", err)
 		return nil, err
 	}
 
@@ -78,7 +79,7 @@ func (s *Server) CreateExercise(ctx context.Context, r gen.CreateExerciseRequest
 func (s *Server) ListExercises(ctx context.Context, r gen.ListExercisesRequestObject) (gen.ListExercisesResponseObject, error) {
 	exercises, err := s.store.QueryExercises(ctx, AuthenticateUserID(ctx))
 	if err != nil {
-		log.Printf("ListExercises: %v", err)
+		log.Printf("500 at ListExercises: %v", err)
 		return nil, err
 	}
 
@@ -125,19 +126,18 @@ func (s *Server) GetExerciseById(ctx context.Context, r gen.GetExerciseByIdReque
 	exercise, err := s.store.QueryExecise(ctx, r.Id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return gen.GetExerciseById404JSONResponse{
-				Error: "exercise not found",
+			return gen.GetExerciseById403JSONResponse{
+				Error: "Forbidden",
 			}, nil
 		}
+		log.Printf("500 at GetExerciseById: %v", err)
 		return nil, err
 	}
 
 	if persistence.FromPgText(exercise.UserID) != "" {
 		if AuthenticateUserID(ctx) != persistence.FromPgText(exercise.UserID) {
-			return gen.GetExerciseById401JSONResponse{
-				UnauthorizedJSONResponse: gen.UnauthorizedJSONResponse{
-					Error: "Unauthorized",
-				},
+			return gen.GetExerciseById403JSONResponse{
+				Error: "Forbidden",
 			}, nil
 		}
 	}

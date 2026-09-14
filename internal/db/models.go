@@ -10,11 +10,12 @@ import (
 
 type Activity struct {
 	ID              string             `json:"id"`
+	UserIDInAct     string             `json:"user_id_in_act"`
 	SessionID       string             `json:"session_id"`
 	ExerciseID      pgtype.Text        `json:"exercise_id"`
 	ActivityType    string             `json:"activity_type"`
 	Reps            pgtype.Int4        `json:"reps"`
-	Weight          pgtype.Float4      `json:"weight"`
+	Weight          pgtype.Numeric     `json:"weight"`
 	SortOrder       int32              `json:"sort_order"`
 	StartTime       pgtype.Timestamptz `json:"start_time"`
 	EndTime         pgtype.Timestamptz `json:"end_time"`

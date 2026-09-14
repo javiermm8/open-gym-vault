@@ -13,19 +13,20 @@ import (
 
 const createActivity = `-- name: CreateActivity :one
 INSERT INTO activities (
-    session_id, exercise_id, activity_type, reps, weight,
+    user_id_in_act, session_id, exercise_id, activity_type, reps, weight,
     sort_order, start_time, end_time, total_time, perceived_effort, client_s
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-RETURNING id, session_id, exercise_id, activity_type, reps, weight, sort_order, start_time, end_time, total_time, perceived_effort, created_at, last_updated_at, client_s
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+RETURNING id, user_id_in_act, session_id, exercise_id, activity_type, reps, weight, sort_order, start_time, end_time, total_time, perceived_effort, created_at, last_updated_at, client_s
 `
 
 type CreateActivityParams struct {
+	UserIDInAct     string             `json:"user_id_in_act"`
 	SessionID       string             `json:"session_id"`
 	ExerciseID      pgtype.Text        `json:"exercise_id"`
 	ActivityType    string             `json:"activity_type"`
 	Reps            pgtype.Int4        `json:"reps"`
-	Weight          pgtype.Float4      `json:"weight"`
+	Weight          pgtype.Numeric     `json:"weight"`
 	SortOrder       int32              `json:"sort_order"`
 	StartTime       pgtype.Timestamptz `json:"start_time"`
 	EndTime         pgtype.Timestamptz `json:"end_time"`
@@ -36,6 +37,7 @@ type CreateActivityParams struct {
 
 func (q *Queries) CreateActivity(ctx context.Context, arg CreateActivityParams) (Activity, error) {
 	row := q.db.QueryRow(ctx, createActivity,
+		arg.UserIDInAct,
 		arg.SessionID,
 		arg.ExerciseID,
 		arg.ActivityType,
@@ -51,6 +53,7 @@ func (q *Queries) CreateActivity(ctx context.Context, arg CreateActivityParams) 
 	var i Activity
 	err := row.Scan(
 		&i.ID,
+		&i.UserIDInAct,
 		&i.SessionID,
 		&i.ExerciseID,
 		&i.ActivityType,
@@ -122,6 +125,25 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 	return i, err
 }
 
+const getMaxWeightByExerciseID = `-- name: GetMaxWeightByExerciseID :one
+SELECT COALESCE(ROUND(MAX(weight)), 0)::integer
+FROM activities
+WHERE user_id_in_act = $1
+  AND exercise_id = $2
+`
+
+type GetMaxWeightByExerciseIDParams struct {
+	UserIDInAct string      `json:"user_id_in_act"`
+	ExerciseID  pgtype.Text `json:"exercise_id"`
+}
+
+func (q *Queries) GetMaxWeightByExerciseID(ctx context.Context, arg GetMaxWeightByExerciseIDParams) (int32, error) {
+	row := q.db.QueryRow(ctx, getMaxWeightByExerciseID, arg.UserIDInAct, arg.ExerciseID)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const getSessionByID = `-- name: GetSessionByID :one
 SELECT id, user_id, session_type, start_time, end_time, total_time, total_weight, overall_perceived_effort, burned_cals, user_notes, created_at, last_updated_at, client_s FROM sessions WHERE id = $1
 `
@@ -148,7 +170,7 @@ func (q *Queries) GetSessionByID(ctx context.Context, id string) (Session, error
 }
 
 const listActivitiesBySession = `-- name: ListActivitiesBySession :many
-SELECT id, session_id, exercise_id, activity_type, reps, weight, sort_order, start_time, end_time, total_time, perceived_effort, created_at, last_updated_at, client_s FROM activities WHERE session_id = $1 ORDER BY sort_order
+SELECT id, user_id_in_act, session_id, exercise_id, activity_type, reps, weight, sort_order, start_time, end_time, total_time, perceived_effort, created_at, last_updated_at, client_s FROM activities WHERE session_id = $1 ORDER BY sort_order
 `
 
 func (q *Queries) ListActivitiesBySession(ctx context.Context, sessionID string) ([]Activity, error) {
@@ -162,6 +184,47 @@ func (q *Queries) ListActivitiesBySession(ctx context.Context, sessionID string)
 		var i Activity
 		if err := rows.Scan(
 			&i.ID,
+			&i.UserIDInAct,
+			&i.SessionID,
+			&i.ExerciseID,
+			&i.ActivityType,
+			&i.Reps,
+			&i.Weight,
+			&i.SortOrder,
+			&i.StartTime,
+			&i.EndTime,
+			&i.TotalTime,
+			&i.PerceivedEffort,
+			&i.CreatedAt,
+			&i.LastUpdatedAt,
+			&i.ClientS,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listActivitiesByUser = `-- name: ListActivitiesByUser :many
+SELECT id, user_id_in_act, session_id, exercise_id, activity_type, reps, weight, sort_order, start_time, end_time, total_time, perceived_effort, created_at, last_updated_at, client_s FROM activities WHERE user_id_in_act = $1 ORDER BY session_id, sort_order
+`
+
+func (q *Queries) ListActivitiesByUser(ctx context.Context, userIDInAct string) ([]Activity, error) {
+	rows, err := q.db.Query(ctx, listActivitiesByUser, userIDInAct)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Activity
+	for rows.Next() {
+		var i Activity
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserIDInAct,
 			&i.SessionID,
 			&i.ExerciseID,
 			&i.ActivityType,

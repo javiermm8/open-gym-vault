@@ -136,6 +136,22 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 	return i, err
 }
 
+const updatePasswordHashByID = `-- name: UpdatePasswordHashByID :exec
+UPDATE users
+SET password_hash = $2
+WHERE id = $1
+`
+
+type UpdatePasswordHashByIDParams struct {
+	ID           string `json:"id"`
+	PasswordHash string `json:"password_hash"`
+}
+
+func (q *Queries) UpdatePasswordHashByID(ctx context.Context, arg UpdatePasswordHashByIDParams) error {
+	_, err := q.db.Exec(ctx, updatePasswordHashByID, arg.ID, arg.PasswordHash)
+	return err
+}
+
 const updateUserByID = `-- name: UpdateUserByID :one
 UPDATE users
 SET (username, display_name, bio, sex, birthday, last_updated_at, client_s) = ($2, $3, $4, $5, $6, $7, $8)

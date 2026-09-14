@@ -103,6 +103,24 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequest"
 
+  /auth/change_password:
+    post:
+      operationId: changePassword
+      summary: Change the user's password and revoke all of its session tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "204":
+          description: Password changed and tokens revoked succesfully
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /new_session:
     post:
       operationId: createSession
@@ -188,8 +206,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ExerciseResponse"
-        "404":
-          description: No exercise with the provided id found
+        "403":
+          description: No exercise with the provided id found or the user is unauthorized to access it
           content:
             application/json:
               schema:
@@ -234,8 +252,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SessionResponse"
-        "404":
-          description: No session with the provided id found
+        "403":
+          description: No session with the provided id found or the user is unauthorized to access it
           content:
             application/json:
               schema:
@@ -278,6 +296,31 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+
+  /stats/personal_record/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getPersonalRecord
+      summary: Get the highest weight lifted given an exerciseID
+      responses:
+        "200":
+          description: Responds with the highest weight lifted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  max_weight:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "400":
+          $ref: "#/components/responses/BadRequest"
 
 components:
   securitySchemes:
@@ -353,6 +396,15 @@ components:
         password:
           type: string
       required: [username, password]
+
+    ChangePasswordRequest:
+      type: object
+      properties:
+        password:
+          type: string
+        new_password:
+          type: string
+      required: [password, new_password]
 
     AuthResponse:
       type: object

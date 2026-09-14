@@ -13,9 +13,6 @@ func (s *Store) WithTx(ctx context.Context, fn func(q *db.Queries) error) error 
 		return fmt.Errorf("beginning transaction: %w", err)
 	}
 
-	// Rollback is safe to call even after a successful Commit — pgx treats
-	// it as a no-op in that case. This defer is what guarantees we never
-	// leave a transaction open if fn panics or returns early.
 	defer func() {
 		if p := recover(); p != nil {
 			_ = tx.Rollback(ctx)

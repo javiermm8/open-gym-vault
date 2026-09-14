@@ -28,7 +28,7 @@ func CheckPassword(hash, password string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
 }
 
-func GenrateRawToken() (raw string, hash string, err error) {
+func GenerateRawToken() (raw string, hash string, err error) {
 	b := make([]byte, tokenBytes)
 	if _, err := rand.Read(b); err != nil {
 		return "", "", fmt.Errorf("generating token: %w", err)

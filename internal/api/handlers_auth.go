@@ -27,6 +27,7 @@ func (s *Server) RegisterUser(ctx context.Context, r gen.RegisterUserRequestObje
 				Error: "username already in use",
 			}, nil
 		}
+		log.Printf("500 at RegisterUser: %v", err)
 		return nil, err
 	}
 
@@ -54,7 +55,7 @@ func (s *Server) LoginUser(ctx context.Context, r gen.LoginUserRequestObject) (g
 				Error: "invalid username or password",
 			}, nil
 		}
-		log.Printf("Login: %v", err)
+		log.Printf("500 at LoginUser: %v", err)
 		return nil, err
 	}
 
@@ -78,7 +79,33 @@ func (s *Server) LogoutUser(ctx context.Context, r gen.LogoutUserRequestObject) 
 	}
 	if err := s.store.Logout(ctx, token); err != nil &&
 		!errors.Is(err, persistence.ErrTokenInvalidOrExpired) {
+		log.Printf("500 at LogoutUser: %v", err)
 		return nil, err
 	}
 	return logoutResponse{}, nil
+}
+
+func (s *Server) ChangePassword(ctx context.Context, r gen.ChangePasswordRequestObject) (gen.ChangePasswordResponseObject, error) {
+	if r.Body.NewPassword == "" || r.Body.Password == "" {
+		return gen.ChangePassword400JSONResponse{
+			BadRequestJSONResponse: gen.BadRequestJSONResponse{
+				Error: "password and new_password are required",
+			},
+		}, nil
+	}
+
+	wrongPassword, err := s.store.ChangePassword(ctx, AuthenticateUserID(ctx), r.Body.Password, r.Body.NewPassword)
+	if wrongPassword {
+		return gen.ChangePassword401JSONResponse{
+			UnauthorizedJSONResponse: gen.UnauthorizedJSONResponse{
+				Error: "invalid password",
+			},
+		}, nil
+	}
+	if err != nil {
+		log.Printf("500 at ChangePassword: %v", err)
+		return nil, err
+	}
+
+	return changePasswordResponse{}, nil
 }

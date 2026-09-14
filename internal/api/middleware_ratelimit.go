@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -56,14 +55,9 @@ func (s *Server) rateLimit(next http.Handler) http.Handler {
 			cfg = authLimit
 		}
 
-		ip, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			ip = r.RemoteAddr
-		}
-
 		now := time.Now().Unix()
 		window := now / int64(cfg.windowSec)
-		key := "ratelimit:" + scope(r.URL.Path) + ":" + ip + ":" + strconv.FormatInt(window, 10)
+		key := "ratelimit:" + scope(r.URL.Path) + ":" + clientIP(r) + ":" + strconv.FormatInt(window, 10)
 
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()

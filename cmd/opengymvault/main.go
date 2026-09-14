@@ -45,15 +45,21 @@ func main() {
 	// Some sort of black magic
 	ctx := context.Background()
 
-	// Open a connection pool to postgress and pings it
-	store, err := persistence.NewStore(ctx, dbURL)
-	if err != nil {
+	// Open a connection pool to postgress and pings it(with retries, same for redis)
+	var store *persistence.Store
+	if err := withRetries("connecting to database", func() error {
+		var err error
+		store, err = persistence.NewStore(ctx, dbURL)
+		return err
+	}); err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 	defer store.Close()
 
 	redisClient := redis.NewClient(&redis.Options{Addr: redisURL})
-	if err := redisClient.Ping(ctx).Err(); err != nil {
+	if err := withRetries("connecting to redis", func() error {
+		return redisClient.Ping(ctx).Err()
+	}); err != nil {
 		log.Fatalf("failed to connect to redis: %v", err)
 	}
 
@@ -74,10 +80,35 @@ func main() {
 	<-stop
 
 	log.Println("shutting down...")
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), envDuration("SHUTDOWN_TIMEOUT", 10*time.Second))
 	defer cancel()
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		log.Printf("error during shutdown: %v", err)
 	}
 	return
+}
+
+func withRetries(what string, fn func() error) error {
+	const attempts = 10
+	const baseDelay = 500 * time.Millisecond
+
+	var err error
+	for i := 1; i <= attempts; i++ {
+		if err = fn(); err == nil {
+			return nil
+		}
+		log.Printf("%s: attempt %d/%d failed: %v", what, i, attempts, err)
+		time.Sleep(time.Duration(i) * baseDelay)
+	}
+	return err
+}
+
+func envDuration(name string, def time.Duration) time.Duration {
+	if v := os.Getenv(name); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			return d
+		}
+		log.Printf("ignoring invalid %s=%q, using default %s", name, v, def)
+	}
+	return def
 }

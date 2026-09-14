@@ -8,6 +8,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/javiermm8/open-gym-vault/internal/auth"
 	"github.com/javiermm8/open-gym-vault/internal/db"
 )
@@ -54,6 +55,38 @@ func (s *Store) Register(ctx context.Context, username, displayName, password st
 	return user, nil
 }
 
+func (s *Store) ChangePassword(ctx context.Context, userID, password, newPassword string) (bool, error) {
+	user, err := s.Queries.GetUserByID(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+
+	if !auth.CheckPassword(user.PasswordHash, password) {
+		return true, nil
+	}
+
+	hashNew, err := auth.HashPassword(newPassword)
+	if err != nil {
+		return false, err
+	}
+
+	if err := s.Queries.UpdatePasswordHashByID(ctx, db.UpdatePasswordHashByIDParams{
+		ID:           userID,
+		PasswordHash: hashNew,
+	}); err != nil {
+		return false, err
+	}
+
+	if err := s.Queries.DeleteAuthTokenByUserID(ctx, userID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return false, nil
+}
+
 func (s *Store) Login(ctx context.Context, username, password string) (rawToken string, expiresAt time.Time, user db.User, err error) {
 	user, err = s.Queries.GetUserByUsername(ctx, username)
 	if err != nil {
@@ -64,7 +97,7 @@ func (s *Store) Login(ctx context.Context, username, password string) (rawToken 
 		return "", time.Time{}, db.User{}, ErrInvalidCredentials
 	}
 
-	raw, hash, err := auth.GenrateRawToken()
+	raw, hash, err := auth.GenerateRawToken()
 	if err != nil {
 		return "", time.Time{}, db.User{}, fmt.Errorf("generating raw token: %w", err)
 	}
@@ -86,11 +119,15 @@ func (s *Store) ExtendTokenExpiry(ctx context.Context, rawToken string) (string,
 
 	token, err := s.Queries.GetAuthTokenByHash(ctx, hash)
 	if err != nil {
-		return "", ErrTokenInvalidOrExpired
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", ErrTokenInvalidOrExpired
+		}
+		log.Printf("500 at ExtendTokenExpiry: GetAuthTokenByHash: %v", err)
+		return "", err
 	}
 
 	if token.ExpiresAt.Time.Before(time.Now()) {
-		if err = s.Queries.DeleteAuthToken(ctx, auth.HashToken(hash)); err != nil {
+		if err = s.Queries.DeleteAuthToken(ctx, hash); err != nil {
 			log.Printf("deleting auth token: %v", err)
 		}
 		return "", ErrTokenInvalidOrExpired
@@ -110,40 +147,6 @@ func (s *Store) ExtendTokenExpiry(ctx context.Context, rawToken string) (string,
 func (s *Store) Logout(ctx context.Context, rawToken string) error {
 	return s.Queries.DeleteAuthToken(ctx, auth.HashToken(rawToken))
 }
-
-// func (s *Store) CreateUser(ctx context.Context, in NewUser) (db.User, error) {
-// 	var user db.User
-
-// 	var clientStuff json.RawMessage
-// 	if in.ClientS != nil {
-// 		clientStuff = *in.ClientS
-// 	}
-
-// 	err := s.WithTx(ctx, func(q *db.Queries) error {
-// 		var err error
-// 		user, err = q.CreateUser(ctx, db.CreateUserParams{
-// 			Username:      in.Username,
-// 			DisplayName:   in.DisplayName,
-// 			PasswordHash:  in.PasswordHash,
-// 			Bio:           ToPgTextPtr(in.Bio),
-// 			Sex:           ToPgTextPtr(in.Sex),
-// 			Birthday:      ToPgDate(in.Birthday),
-// 			CreatedAt:     ToPgTimestamptz(time.Now()),
-// 			LastUpdatedAt: ToPgTimestamptz(time.Time{}),
-// 			ClientS:       clientStuff,
-// 		})
-// 		if err != nil {
-// 			return fmt.Errorf("creating user: %w", err)
-// 		}
-
-// 		return nil
-// 	})
-// 	if err != nil {
-// 		return db.User{}, err
-// 	}
-
-// 	return user, nil
-// }
 
 func (s *Store) QueryUser(ctx context.Context, userID string) (db.User, error) {
 	user, err := s.Queries.GetUserByID(ctx, userID)
@@ -177,17 +180,6 @@ func (s *Store) UpdateUser(ctx context.Context, userID string, u UpdatedUser) (d
 	return user, nil
 }
 
-// DeleteUserCascade deletes a user and everything that depends on them:
-// their activities, their custom exercises, their sessions, and finally
-// the user row itself.
-//
-// This can't be left to a single `DELETE FROM users` relying purely on
-// ON DELETE CASCADE, because activities.exercise_id is intentionally
-// ON DELETE RESTRICT (to protect *global* exercises from being deleted
-// while other users still reference them). That RESTRICT can conflict
-// with the CASCADE path from users -> exercises if Postgres processes it
-// before the users -> sessions -> activities cascade has cleared the
-// references — so we control the order explicitly instead.
 func (s *Store) DeleteUserCascade(ctx context.Context, userID string) error {
 
 	return s.WithTx(ctx, func(q *db.Queries) error {

@@ -1,6 +1,7 @@
 package persistence
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -49,6 +50,29 @@ func FromPgFloat4Ptr(v pgtype.Float4) *float32 {
 		return nil
 	}
 	f := v.Float32
+	return &f
+}
+
+func ToPgNumericPtr(v *float32) pgtype.Numeric {
+	var n pgtype.Numeric
+	if v == nil {
+		return n
+	}
+	if err := n.Scan(strconv.FormatFloat(float64(*v), 'f', -1, 32)); err != nil {
+		return pgtype.Numeric{}
+	}
+	return n
+}
+
+func FromPgNumericPtr(v pgtype.Numeric) *float32 {
+	if !v.Valid {
+		return nil
+	}
+	f64, err := v.Float64Value()
+	if err != nil {
+		return nil
+	}
+	f := float32(f64.Float64)
 	return &f
 }
 
