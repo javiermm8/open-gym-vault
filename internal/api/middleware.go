@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-func withMiddleware(h http.Handler) http.Handler {
-	return recoverPanic(logRequests(h))
+func (s *Server) withMiddleware(h http.Handler) http.Handler {
+	return recoverPanic(logRequests(s.rateLimit(h)))
 }
 
 // logRequests logs method, path, status, and duration for every request.

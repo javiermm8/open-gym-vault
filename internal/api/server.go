@@ -6,16 +6,18 @@ import (
 	"time"
 
 	"github.com/javiermm8/open-gym-vault/internal/persistence"
+	"github.com/redis/go-redis/v9"
 )
 
 // Server holds the dependencies handler needs. Handlers are methods on Server so we don't have to use globals.
 type Server struct {
-	store *persistence.Store
+	store       *persistence.Store
+	redisClient *redis.Client
 }
 
 // Returns a *Server with the provided store
-func New(store *persistence.Store) *Server {
-	return &Server{store: store}
+func New(store *persistence.Store, redisClient *redis.Client) *Server {
+	return &Server{store: store, redisClient: redisClient}
 }
 
 // httpServer wraps http.Server with timeouts built from a *Server's routes.

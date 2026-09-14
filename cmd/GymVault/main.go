@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/javiermm8/open-gym-vault/internal/api"
 	"github.com/javiermm8/open-gym-vault/internal/persistence"
@@ -27,6 +28,12 @@ func main() {
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
 		log.Fatal("DATABASE_URL environment variable is not set")
+	}
+
+	// Get redis url from env variables
+	redisURL := os.Getenv("REDIS_ADDR")
+	if redisURL == "" {
+		log.Fatal("REDIS_ADDR environment variable is not set")
 	}
 
 	// Get listening url from env variables
@@ -45,8 +52,12 @@ func main() {
 	}
 	defer store.Close()
 
-	// api.Server, holds the dependencies handler needs
-	server := api.New(store)
+	redisClient := redis.NewClient(&redis.Options{Addr: redisURL})
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		log.Fatalf("failed to connect to redis: %v", err)
+	}
+
+	server := api.New(store, redisClient)
 
 	httpServer := api.NewHTTPServer(addr, server)
 

@@ -18,5 +18,5 @@ func (s *Server) routes() http.Handler {
 			},
 		},
 	)
-	return withMiddleware(gen.Handler(strict))
+	return s.withMiddleware(gen.Handler(strict))
 }
