@@ -1,8 +1,6 @@
 name: opengymvault
 
 services:
-  # One-shot job: applies all pending migrations, then exits. The app
-  # waits for it to complete successfully before starting.
   migrate:
     build: .
     entrypoint: ["/migrate"]
