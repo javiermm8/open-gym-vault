@@ -29,6 +29,7 @@ type Querier interface {
 	// DeleteActivitiesByUser so no activity still references them.
 	DeleteExercisesByUser(ctx context.Context, userID pgtype.Text) error
 	DeleteExpiredAuthTokens(ctx context.Context) error
+	DeleteSessionByID(ctx context.Context, id string) error
 	DeleteUser(ctx context.Context, id string) error
 	GetAuthTokenByHash(ctx context.Context, tokenHash string) (AuthToken, error)
 	GetExerciseByID(ctx context.Context, id string) (Exercise, error)

@@ -262,6 +262,22 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "400":
           $ref: "#/components/responses/BadRequest"
+    delete:
+      operationId: deleteSessionById
+      summary: Delete a session by its ID, including its activities.
+      responses:
+        "204":
+          description: Session deleted
+        "403":
+          description: No session with the provided id found or the user is unauthorized to access it
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "400":
+          $ref: "#/components/responses/BadRequest"
 
   /users/me:
     get:

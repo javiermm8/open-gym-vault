@@ -31,3 +31,6 @@ SELECT COALESCE(ROUND(MAX(weight)), 0)::integer
 FROM activities
 WHERE user_id_in_act = $1
   AND exercise_id = $2;
+
+-- name: DeleteSessionByID :exec
+DELETE FROM sessions WHERE id = $1;

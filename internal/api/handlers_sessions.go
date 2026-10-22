@@ -266,3 +266,31 @@ func (s *Server) GetSessionById(ctx context.Context, r gen.GetSessionByIdRequest
 		ClientS:                clientSFromDB(session.ClientS),
 	}, nil
 }
+
+func (s *Server) DeleteSessionById(ctx context.Context, r gen.DeleteSessionByIdRequestObject) (gen.DeleteSessionByIdResponseObject, error) {
+	if r.Id == "" {
+		return gen.DeleteSessionById400JSONResponse{
+			BadRequestJSONResponse: gen.BadRequestJSONResponse{
+				Error: "id is required",
+			},
+		}, nil
+	}
+	if utf8.RuneCountInString(r.Id) != 36 {
+		return gen.DeleteSessionById400JSONResponse{
+			BadRequestJSONResponse: gen.BadRequestJSONResponse{
+				Error: "id must be a valid session id",
+			},
+		}, nil
+	}
+
+	session, activities, err := s.store.QuerySession(ctx, r.Id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return gen.DeleteSessionById403JSONResponse{
+				Error: "forbidden",
+			}, nil
+		}
+		log.Printf("500 at GetSessionById: %v", err)
+		return nil, err
+	}
+}

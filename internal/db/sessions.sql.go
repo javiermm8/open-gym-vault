@@ -125,6 +125,15 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 	return i, err
 }
 
+const deleteSessionByID = `-- name: DeleteSessionByID :exec
+DELETE FROM sessions WHERE id = $1
+`
+
+func (q *Queries) DeleteSessionByID(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, deleteSessionByID, id)
+	return err
+}
+
 const getMaxWeightByExerciseID = `-- name: GetMaxWeightByExerciseID :one
 SELECT COALESCE(ROUND(MAX(weight)), 0)::integer
 FROM activities
