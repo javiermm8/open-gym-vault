@@ -283,14 +283,22 @@ func (s *Server) DeleteSessionById(ctx context.Context, r gen.DeleteSessionByIdR
 		}, nil
 	}
 
-	session, activities, err := s.store.QuerySession(ctx, r.Id)
+	session, _, err := s.store.QuerySession(ctx, r.Id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return gen.DeleteSessionById403JSONResponse{
 				Error: "forbidden",
 			}, nil
 		}
-		log.Printf("500 at GetSessionById: %v", err)
+		log.Printf("500 at DeleteSessionById: QuerySession: %v", err)
 		return nil, err
 	}
+
+	err = s.store.Queries.DeleteSessionByID(ctx, session.ID)
+	if err != nil {
+		log.Printf("500 at DeleteSessionById: DeleteSessionByID: %v", err)
+		return nil, err
+	}
+
+	return gen.DeleteSessionById204Response{}, nil
 }
